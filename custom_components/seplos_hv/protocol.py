@@ -238,8 +238,13 @@ class PackSummary:
     v_load: float
     current: float
     soc: int
+    soc_coulomb: int
+    soc_usable: int
     soh: int
     remaining_ah: float
+    remaining_reported_ah: float
+    usable_remaining_ah: float
+    usable_full_ah: float
     full_ah: float
     design_ah: float
     limits: list[int]
@@ -280,8 +285,13 @@ class PackSummary:
             "v_load": self.v_load,
             "current": self.current,
             "soc": self.soc,
+            "soc_coulomb": self.soc_coulomb,
+            "soc_usable": self.soc_usable,
             "soh": self.soh,
             "remaining_ah": self.remaining_ah,
+            "remaining_reported_ah": self.remaining_reported_ah,
+            "usable_remaining_ah": self.usable_remaining_ah,
+            "usable_full_ah": self.usable_full_ah,
             "full_ah": self.full_ah,
             "design_ah": self.design_ah,
             "limits": list(self.limits),
@@ -309,10 +319,24 @@ def decode_summary(payload: bytes) -> PackSummary:
     v_pack = struct.unpack(">H", payload[0:2])[0] / 10
     v_collect = struct.unpack(">H", payload[2:4])[0] / 10
     v_load = struct.unpack(">H", payload[4:6])[0] / 10
-    current = struct.unpack(">i", payload[6:10])[0] * CURRENT_SCALE
-    soc = payload[12]
+    # Verified live 2026-09-14 against the Solis inverter's BMS readings:
+    # bytes 6..7 are always 0; the pack current is the i32 at bytes 8..11 in
+    # 0.01 A, negative while discharging (-0.29..-0.45 A vs -0.2 A on the PCS).
+    current = struct.unpack(">i", payload[8:12])[0] * CURRENT_SCALE
+    # The BCU keeps three SOC figures side by side:
+    #   byte 12  coulomb counter          = remaining_ah / full_ah
+    #   byte 13  usable-window SOC        = usable_remaining_ah / usable_full_ah
+    #   byte 14  reported SOC (sent to the PCS over CAN; byte 15 repeats it)
+    #                                     = remaining_reported_ah / full_ah
+    # Live: 98 / 79 / 79 while the inverter showed 79 %; fixture: 42 / 39 / 42.
+    soc_coulomb = payload[12]
+    soc_usable = payload[13]
+    soc = payload[14]
     soh = payload[16]
     remaining_ah = struct.unpack(">I", payload[18:22])[0] / 100
+    usable_remaining_ah = struct.unpack(">I", payload[22:26])[0] / 100
+    remaining_reported_ah = struct.unpack(">I", payload[26:30])[0] / 100
+    usable_full_ah = struct.unpack(">I", payload[34:38])[0] / 100
     full_ah = struct.unpack(">I", payload[30:34])[0] / 100
     design_ah = struct.unpack(">I", payload[38:42])[0] / 100
     raw_u32 = {off: struct.unpack(">I", payload[off:off + 4])[0] for off in (22, 26, 34, 42, 46)}
@@ -321,7 +345,10 @@ def decode_summary(payload: bytes) -> PackSummary:
     max_temp_raw, max_temp_index, min_temp_raw, min_temp_index = struct.unpack(">HHHH", payload[74:82])
     return PackSummary(
         v_pack=v_pack, v_collect=v_collect, v_load=v_load, current=current,
-        soc=soc, soh=soh, remaining_ah=remaining_ah, full_ah=full_ah, design_ah=design_ah,
+        soc=soc, soc_coulomb=soc_coulomb, soc_usable=soc_usable, soh=soh,
+        remaining_ah=remaining_ah, remaining_reported_ah=remaining_reported_ah,
+        usable_remaining_ah=usable_remaining_ah, usable_full_ah=usable_full_ah,
+        full_ah=full_ah, design_ah=design_ah,
         limits=limits, raw_u32=raw_u32,
         cell_max_mv=cell_max_mv, cell_max_index=cell_max_index,
         cell_min_mv=cell_min_mv, cell_min_index=cell_min_index,

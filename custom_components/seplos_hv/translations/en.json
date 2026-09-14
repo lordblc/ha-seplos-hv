@@ -64,68 +64,203 @@
   },
   "entity": {
     "sensor": {
-      "pack_voltage": { "name": "Pack voltage" },
-      "collect_voltage": { "name": "Collect voltage" },
-      "load_voltage": { "name": "Load voltage" },
-      "current": { "name": "Current" },
-      "power": { "name": "Power" },
-      "soc": { "name": "State of charge" },
-      "soh": { "name": "State of health" },
-      "remaining_capacity": { "name": "Remaining capacity" },
-      "full_capacity": { "name": "Full capacity" },
-      "design_capacity": { "name": "Design capacity" },
-      "remaining_energy": { "name": "Remaining energy" },
-      "cell_max_voltage": { "name": "Max cell voltage" },
-      "cell_max_label": { "name": "Max cell" },
-      "cell_min_voltage": { "name": "Min cell voltage" },
-      "cell_min_label": { "name": "Min cell" },
-      "cell_spread": { "name": "Cell spread" },
-      "temp_max": { "name": "Max temperature" },
-      "temp_max_label": { "name": "Max temperature sensor" },
-      "temp_min": { "name": "Min temperature" },
-      "temp_min_label": { "name": "Min temperature sensor" },
-      "limit": { "name": "Limit {index}" },
-      "relay_word": { "name": "Relay word" },
-      "status_byte27": { "name": "Status byte 27" },
-      "status_byte30": { "name": "Status byte 30" },
-      "status_byte36": { "name": "Status byte 36" },
-      "protocol": { "name": "Protocol" },
-      "firmware": { "name": "Firmware" },
-      "bms_serial": { "name": "BMS serial" },
-      "modules_online": { "name": "Modules online" },
-      "cells_online": { "name": "Cells online" },
-      "modules_without_temp_sensors": { "name": "Modules without temperature sensors" },
-      "headroom_spread_to_l1": { "name": "Headroom to cell spread alarm" },
-      "headroom_min_temp_to_charge_inhibit": { "name": "Headroom to charge low-temp inhibit" },
-      "last_medium_update": { "name": "Last cell/temperature update" },
-      "last_slow_update": { "name": "Last protection parameter update" },
-      "module_min_voltage": { "name": "Module {module} min voltage" },
-      "module_max_voltage": { "name": "Module {module} max voltage" },
-      "module_spread": { "name": "Module {module} spread" },
-      "module_min_cell": { "name": "Module {module} min cell" },
-      "module_max_cell": { "name": "Module {module} max cell" },
-      "module_sum_voltage": { "name": "Module {module} sum voltage" },
-      "module_cell_count": { "name": "Module {module} cell count" },
-      "module_temp_sensor_count": { "name": "Module {module} temperature sensor count" },
-      "module_temp_min": { "name": "Module {module} min temperature" },
-      "module_temp_max": { "name": "Module {module} max temperature" },
-      "module_temp_avg": { "name": "Module {module} average temperature" },
-      "cell_voltage": { "name": "Module {module} cell {cell} voltage" },
-      "module_temp_sensor": { "name": "Module {module} temperature sensor {sensor}" },
-      "bcu_temperature": { "name": "BCU temperature {sensor}" },
-      "param_trip": { "name": "{param} L{level} trip" },
-      "param_recover": { "name": "{param} L{level} recover" }
+      "pack_voltage": {
+        "name": "Pack voltage"
+      },
+      "collect_voltage": {
+        "name": "Collect voltage"
+      },
+      "load_voltage": {
+        "name": "Load voltage"
+      },
+      "current": {
+        "name": "Current"
+      },
+      "power": {
+        "name": "Power"
+      },
+      "soc": {
+        "name": "State of charge"
+      },
+      "soh": {
+        "name": "State of health"
+      },
+      "remaining_capacity": {
+        "name": "Remaining capacity"
+      },
+      "full_capacity": {
+        "name": "Full capacity"
+      },
+      "design_capacity": {
+        "name": "Design capacity"
+      },
+      "remaining_energy": {
+        "name": "Remaining energy"
+      },
+      "cell_max_voltage": {
+        "name": "Max cell voltage"
+      },
+      "cell_max_label": {
+        "name": "Max cell"
+      },
+      "cell_min_voltage": {
+        "name": "Min cell voltage"
+      },
+      "cell_min_label": {
+        "name": "Min cell"
+      },
+      "cell_spread": {
+        "name": "Cell spread"
+      },
+      "temp_max": {
+        "name": "Max temperature"
+      },
+      "temp_max_label": {
+        "name": "Max temperature sensor"
+      },
+      "temp_min": {
+        "name": "Min temperature"
+      },
+      "temp_min_label": {
+        "name": "Min temperature sensor"
+      },
+      "limit": {
+        "name": "Limit {index}"
+      },
+      "relay_word": {
+        "name": "Relay word"
+      },
+      "status_byte27": {
+        "name": "Status byte 27"
+      },
+      "status_byte30": {
+        "name": "Status byte 30"
+      },
+      "status_byte36": {
+        "name": "Status byte 36"
+      },
+      "protocol": {
+        "name": "Protocol"
+      },
+      "firmware": {
+        "name": "Firmware"
+      },
+      "bms_serial": {
+        "name": "BMS serial"
+      },
+      "modules_online": {
+        "name": "Modules online"
+      },
+      "cells_online": {
+        "name": "Cells online"
+      },
+      "modules_without_temp_sensors": {
+        "name": "Modules without temperature sensors"
+      },
+      "headroom_spread_to_l1": {
+        "name": "Headroom to cell spread alarm"
+      },
+      "headroom_min_temp_to_charge_inhibit": {
+        "name": "Headroom to charge low-temp inhibit"
+      },
+      "last_medium_update": {
+        "name": "Last cell/temperature update"
+      },
+      "last_slow_update": {
+        "name": "Last protection parameter update"
+      },
+      "module_min_voltage": {
+        "name": "Module {module} min voltage"
+      },
+      "module_max_voltage": {
+        "name": "Module {module} max voltage"
+      },
+      "module_spread": {
+        "name": "Module {module} spread"
+      },
+      "module_min_cell": {
+        "name": "Module {module} min cell"
+      },
+      "module_max_cell": {
+        "name": "Module {module} max cell"
+      },
+      "module_sum_voltage": {
+        "name": "Module {module} sum voltage"
+      },
+      "module_cell_count": {
+        "name": "Module {module} cell count"
+      },
+      "module_temp_sensor_count": {
+        "name": "Module {module} temperature sensor count"
+      },
+      "module_temp_min": {
+        "name": "Module {module} min temperature"
+      },
+      "module_temp_max": {
+        "name": "Module {module} max temperature"
+      },
+      "module_temp_avg": {
+        "name": "Module {module} average temperature"
+      },
+      "cell_voltage": {
+        "name": "Module {module} cell {cell} voltage"
+      },
+      "module_temp_sensor": {
+        "name": "Module {module} temperature sensor {sensor}"
+      },
+      "bcu_temperature": {
+        "name": "BCU temperature {sensor}"
+      },
+      "param_trip": {
+        "name": "{param} L{level} trip"
+      },
+      "param_recover": {
+        "name": "{param} L{level} recover"
+      },
+      "soc_coulomb": {
+        "name": "SOC (coulomb counter)"
+      },
+      "soc_usable": {
+        "name": "SOC (usable window)"
+      },
+      "remaining_capacity_reported": {
+        "name": "Remaining capacity (reported)"
+      },
+      "usable_remaining_capacity": {
+        "name": "Usable remaining capacity"
+      },
+      "usable_full_capacity": {
+        "name": "Usable full capacity"
+      }
     },
     "binary_sensor": {
-      "charge_relay": { "name": "Charge relay" },
-      "discharge_relay": { "name": "Discharge relay" },
-      "precharge_relay": { "name": "Precharge relay" },
-      "negative_relay": { "name": "Negative relay" },
-      "heating_relay": { "name": "Heating relay" },
-      "current_limiting": { "name": "Current limiting" },
-      "bcu_standby": { "name": "BCU standby" },
-      "module_temp_sensors_missing": { "name": "Module temperature sensors missing" },
-      "cell_spread_warning": { "name": "Cell spread warning" }
+      "charge_relay": {
+        "name": "Charge relay"
+      },
+      "discharge_relay": {
+        "name": "Discharge relay"
+      },
+      "precharge_relay": {
+        "name": "Precharge relay"
+      },
+      "negative_relay": {
+        "name": "Negative relay"
+      },
+      "heating_relay": {
+        "name": "Heating relay"
+      },
+      "current_limiting": {
+        "name": "Current limiting"
+      },
+      "bcu_standby": {
+        "name": "BCU standby"
+      },
+      "module_temp_sensors_missing": {
+        "name": "Module temperature sensors missing"
+      },
+      "cell_spread_warning": {
+        "name": "Cell spread warning"
+      }
     }
   }
 }

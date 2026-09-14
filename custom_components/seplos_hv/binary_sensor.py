@@ -18,18 +18,15 @@ from .entity import SeplosHvEntity
 
 
 def _is_bcu_standby(data: SeplosHvData) -> bool:
-    """True when all four limit registers are 0 while charge+discharge relays are closed.
+    """True when the BCU reports system state 1 in status byte 36.
 
-    Believed to indicate the BCU has both power-path relays engaged but is
-    reporting no charge/discharge limit yet, i.e. it is idling in standby
-    rather than actively regulating the pack (SPEC.md notes the limits field
-    is all-zero while the observed BCU sits in Standby).
+    Observed: byte 36 == 1 while the vendor UI showed "Standby" and the BCU
+    advertised 0 A limits to the inverter; byte 36 == 2 once it advertised
+    +/-32 A and the inverter charged/discharged normally. The four u32 values
+    at summary offsets 50..65 stay 0 in both states, so they are NOT the
+    limits and are not used here.
     """
-    return (
-        all(limit == 0 for limit in data.summary.limits)
-        and data.status.charge_relay
-        and data.status.discharge_relay
-    )
+    return data.status.byte36 == 1
 
 
 def _is_cell_spread_warning(data: SeplosHvData) -> bool:

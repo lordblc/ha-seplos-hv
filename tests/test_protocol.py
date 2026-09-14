@@ -103,7 +103,13 @@ class TestDecodeSummary(unittest.TestCase):
         # NOTE: SPEC.md says soc=50 / remaining≈299.97; the fixture's every
         # 0x000A reply actually decodes to soc=42 / remaining=250.0 at these
         # offsets. Trusting the fixture per the task instructions.
-        self.assertEqual(self.summary.soc, 42)
+        self.assertEqual(self.summary.soc, 42)            # byte 14, reported to PCS
+        self.assertEqual(self.summary.soc_coulomb, 42)    # byte 12
+        self.assertEqual(self.summary.soc_usable, 39)     # byte 13
+        self.assertAlmostEqual(self.summary.usable_remaining_ah, 227.5)
+        self.assertAlmostEqual(self.summary.remaining_reported_ah, 250.0)
+        self.assertAlmostEqual(self.summary.usable_full_ah, 577.8)
+        self.assertEqual(self.summary.current, 0.0)
         self.assertEqual(self.summary.soh, 100)
         self.assertAlmostEqual(self.summary.remaining_ah, 250.0)
         self.assertAlmostEqual(self.summary.full_ah, 600.0)

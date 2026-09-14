@@ -45,4 +45,4 @@ MAX_SLOW_INTERVAL: Final = 86400
 REQUEST_TIMEOUT: Final = 1.5
 
 # Integration version (keep in sync with manifest.json).
-VERSION: Final = "0.1.1"
+VERSION: Final = "0.2.0"

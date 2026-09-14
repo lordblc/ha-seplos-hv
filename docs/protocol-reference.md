@@ -134,23 +134,30 @@ Temperatures are tenths of a kelvin: `°C = (raw − 2731) / 10`. A module with 
 thermistor loom reports `sensor_count = 0` rather than null values — a clean signal to surface
 as an integration diagnostic.
 
-### Pack summary — `0x000A`
+### Pack summary — `0x000A` (82 bytes) — verified live 2026-09-14 against the PCS
 
-```
-offset 0   u16   pack voltage, 0.1 V
-offset 2   u16   secondary voltage, 0.1 V
-offset 4   u16   tertiary voltage, 0.1 V
-…                middle section undecoded (currents, capacities, SOC/SOH)
-last 16 bytes:
-  u16 max_cell_mV, u16 max_index
-  u16 min_cell_mV, u16 min_index
-  u16 max_temp,    u16 max_temp_index
-  u16 min_temp,    u16 min_temp_index
-```
+| Offset | Type | Field |
+|---:|---|---|
+| 0 / 2 / 4 | u16 | pack / collect / load voltage, 0.1 V |
+| 6 | u16 | always 0 |
+| 8 | i32 | current, 0.01 A, **negative = discharge** (matches inverter "battery current (BMS)") |
+| 12 | u8 | SOC, coulomb counter = remaining(18) / full(30) |
+| 13 | u8 | SOC, usable window = usable remaining(22) / usable full(34) |
+| 14 / 15 | u8 | **SOC reported to the PCS over CAN** (what the inverter shows) = reported remaining(26) / full(30) |
+| 16 | u8 | SOH % |
+| 18 | u32 | remaining Ah, coulomb counter, 10 mAh |
+| 22 | u32 | usable remaining Ah |
+| 26 | u32 | reported remaining Ah |
+| 30 | u32 | full Ah |
+| 34 | u32 | usable full Ah |
+| 38 / 42 | u32 | design Ah (twice) |
+| 46 | u32 | unknown (1028 on this unit) |
+| 50–65 | 4 × u32 | always 0 — **not** the current limits (the PCS saw ±32 A while these stayed 0) |
+| 66–73 | 4 × u16 | max cell mV, index, min cell mV, index |
+| 74–81 | 4 × u16 | max temp 0.1 K, index, min temp 0.1 K, index |
 
-Cell index is `module × 32 + cell`, zero-based. Self-validating: the block reported 3416 mV at
-index 20 and 3188 mV at index 18, resolving to BMU1 C21 and BMU1 C19 — exactly the extremes in
-the per-cell block.
+Live example: coulomb SOC 98 % (588.8 Ah) while the reported SOC was 79 % (475.4 Ah) and the
+inverter displayed 79 %. The coulomb counter has never been calibrated on this unit (cycles 0).
 
 ### Protection parameters — `0x02xx`
 
