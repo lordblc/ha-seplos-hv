@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Cross-check every entity translation_key used in custom_components/seplos_hv
-against strings.json, translations/en.json and translations/nb.json.
+against strings.json, translations/en.json, translations/nb.json and
+translations/zh-Hans.json.
 
 Static ``translation_key="..."`` / ``translation_key='...'`` literals (in
 EntityDescription instances and as ``_attr_translation_key = "..."``) are
@@ -42,6 +43,7 @@ TRANSLATION_FILES = {
     "strings.json": COMPONENT / "strings.json",
     "translations/en.json": COMPONENT / "translations" / "en.json",
     "translations/nb.json": COMPONENT / "translations" / "nb.json",
+    "translations/zh-Hans.json": COMPONENT / "translations" / "zh-Hans.json",
 }
 
 
@@ -90,7 +92,7 @@ def main() -> int:
 
     print()
     if ok:
-        print("All translation_key usages are covered in strings.json, en.json and nb.json.")
+        print("All translation_key usages are covered in strings.json, en.json, nb.json and zh-Hans.json.")
         return 0
     print("FAILED: some translation_key usages are not covered. See MISSING lines above.")
     return 1

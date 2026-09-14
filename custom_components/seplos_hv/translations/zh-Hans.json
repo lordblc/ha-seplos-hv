@@ -1,0 +1,131 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Seplos HV BMS",
+        "description": "选择 Home Assistant 连接 BCU-1002C 主控盒的方式。",
+        "menu_options": {
+          "tcp": "网络（TCP 网关）",
+          "serial": "串口（USB RS485 适配器）"
+        }
+      },
+      "tcp": {
+        "title": "网络连接",
+        "description": "连接到设置为透传模式的 Waveshare RS232/485/422 TO POE ETH (B) 网关（或同类产品）。",
+        "data": {
+          "host": "主机",
+          "port": "端口"
+        },
+        "data_description": {
+          "host": "TCP 网关的 IP 地址或主机名。",
+          "port": "网关监听的 TCP 端口（默认 8899）。"
+        }
+      },
+      "serial": {
+        "title": "串口连接",
+        "description": "连接到接入 BCU RS485-1 端口的本地 USB RS485 适配器。",
+        "data": {
+          "serial_port": "串口设备",
+          "baudrate": "波特率"
+        },
+        "data_description": {
+          "serial_port": "设备路径，例如 /dev/ttyUSB0。",
+          "baudrate": "必须与 BCU 配置的波特率一致（默认 57600）。"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "无法连接到 BCU。",
+      "timeout": "BCU 未在规定时间内响应。",
+      "unknown": "发生意外错误。"
+    },
+    "abort": {
+      "already_configured": "该 BMS 已配置。"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Seplos HV BMS 选项",
+        "data": {
+          "fast_interval": "快速轮询间隔（秒）",
+          "medium_interval": "中速轮询间隔（秒）",
+          "slow_interval": "慢速轮询间隔（秒）",
+          "enable_cell_sensors": "启用单体电压传感器"
+        },
+        "data_description": {
+          "fast_interval": "读取电池组概要与状态的频率（默认 15 秒）。",
+          "medium_interval": "读取电芯电压与温度的频率（默认 60 秒）。",
+          "slow_interval": "读取保护参数的频率（默认 3600 秒）。",
+          "enable_cell_sensors": "为每个电芯创建一个传感器（最多 128 个）。无论是否开启该选项，这些传感器都会存在，关闭时默认处于禁用状态。"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "pack_voltage": { "name": "电池组电压" },
+      "collect_voltage": { "name": "采集电压" },
+      "load_voltage": { "name": "负载电压" },
+      "current": { "name": "电流" },
+      "power": { "name": "功率" },
+      "soc": { "name": "荷电状态（SOC）" },
+      "soh": { "name": "健康状态（SOH）" },
+      "remaining_capacity": { "name": "剩余容量" },
+      "full_capacity": { "name": "满充容量" },
+      "design_capacity": { "name": "设计容量" },
+      "remaining_energy": { "name": "剩余电量" },
+      "cell_max_voltage": { "name": "最高电芯电压" },
+      "cell_max_label": { "name": "最高电压电芯" },
+      "cell_min_voltage": { "name": "最低电芯电压" },
+      "cell_min_label": { "name": "最低电压电芯" },
+      "cell_spread": { "name": "单体压差" },
+      "temp_max": { "name": "最高温度" },
+      "temp_max_label": { "name": "最高温度传感器" },
+      "temp_min": { "name": "最低温度" },
+      "temp_min_label": { "name": "最低温度传感器" },
+      "limit": { "name": "限值 {index}" },
+      "relay_word": { "name": "继电器状态字" },
+      "status_byte27": { "name": "状态字节 27" },
+      "status_byte30": { "name": "状态字节 30" },
+      "status_byte36": { "name": "状态字节 36" },
+      "protocol": { "name": "协议" },
+      "firmware": { "name": "固件版本" },
+      "bms_serial": { "name": "BMS 序列号" },
+      "modules_online": { "name": "在线模组数" },
+      "cells_online": { "name": "在线电芯数" },
+      "modules_without_temp_sensors": { "name": "无温度传感器的模组数" },
+      "headroom_spread_to_l1": { "name": "距单体压差告警的余量" },
+      "headroom_min_temp_to_charge_inhibit": { "name": "距低温禁充的余量" },
+      "last_medium_update": { "name": "上次电芯/温度更新时间" },
+      "last_slow_update": { "name": "上次保护参数更新时间" },
+      "module_min_voltage": { "name": "模组 {module} 最低电压" },
+      "module_max_voltage": { "name": "模组 {module} 最高电压" },
+      "module_spread": { "name": "模组 {module} 压差" },
+      "module_min_cell": { "name": "模组 {module} 最低电压电芯" },
+      "module_max_cell": { "name": "模组 {module} 最高电压电芯" },
+      "module_sum_voltage": { "name": "模组 {module} 总电压" },
+      "module_cell_count": { "name": "模组 {module} 电芯数量" },
+      "module_temp_sensor_count": { "name": "模组 {module} 温度传感器数量" },
+      "module_temp_min": { "name": "模组 {module} 最低温度" },
+      "module_temp_max": { "name": "模组 {module} 最高温度" },
+      "module_temp_avg": { "name": "模组 {module} 平均温度" },
+      "cell_voltage": { "name": "模组 {module} 电芯 {cell} 电压" },
+      "module_temp_sensor": { "name": "模组 {module} 温度传感器 {sensor}" },
+      "bcu_temperature": { "name": "BCU 温度 {sensor}" },
+      "param_trip": { "name": "{param} L{level} 触发" },
+      "param_recover": { "name": "{param} L{level} 恢复" }
+    },
+    "binary_sensor": {
+      "charge_relay": { "name": "充电继电器" },
+      "discharge_relay": { "name": "放电继电器" },
+      "precharge_relay": { "name": "预充继电器" },
+      "negative_relay": { "name": "负极继电器" },
+      "heating_relay": { "name": "加热膜继电器" },
+      "current_limiting": { "name": "限流中" },
+      "bcu_standby": { "name": "BCU 待机" },
+      "module_temp_sensors_missing": { "name": "模组温度传感器缺失" },
+      "cell_spread_warning": { "name": "单体压差告警" }
+    }
+  }
+}

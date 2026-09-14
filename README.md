@@ -114,8 +114,8 @@ entry → **Download diagnostics**) — nothing is redacted, since no secrets ar
 
 ## Translations
 
-English and Norwegian (Bokmål) are included for every config/option string and every entity
-name.
+English, Norwegian (Bokmål) and Simplified Chinese (zh-Hans) are included for every config/option
+string and every entity name.
 
 ## License
 
