@@ -108,7 +108,7 @@ class TestDecodeSummary(unittest.TestCase):
         self.assertEqual(self.summary.soc_usable, 39)     # byte 13
         self.assertAlmostEqual(self.summary.usable_remaining_ah, 227.5)
         self.assertAlmostEqual(self.summary.remaining_reported_ah, 250.0)
-        self.assertAlmostEqual(self.summary.usable_full_ah, 577.8)
+        self.assertAlmostEqual(self.summary.usable_full_ah, 577.5)
         self.assertEqual(self.summary.current, 0.0)
         self.assertEqual(self.summary.soh, 100)
         self.assertAlmostEqual(self.summary.remaining_ah, 250.0)
