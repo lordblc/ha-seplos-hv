@@ -24,4 +24,5 @@ jobs:
         with:
           category: integration
           # Remove "brands" once the logo PR to home-assistant/brands is merged.
-          ignore: brands
+          # "license": HACS only recognises GitHub-detectable OSI licences; this repo is PolyForm Noncommercial.
+          ignore: brands license
