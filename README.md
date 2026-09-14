@@ -125,19 +125,14 @@ string and every entity name.
 
 ## License
 
-MIT © 2026 lordblc
+[PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0) — see
+[LICENSE](LICENSE).
 
-## Protocol notes and development
+You may use, copy, modify and share this software freely for **non-commercial** purposes,
+including personal use, and use by charities, schools and public research bodies. **Commercial
+use is not permitted**: you may not sell it, bundle or repackage it into a product or service
+that is sold, or otherwise use it for commercial advantage, without a separate licence from the
+author. Contact the author via GitHub if you want a commercial licence.
 
-The BCU does **not** speak Modbus on RS485-1, even though Seplos publishes a Modbus document
-for their per-pack BMS products. The wire protocol used here was reverse-engineered from the
-vendor tool's own frame log and is documented in [docs/protocol-reference.md](docs/protocol-reference.md).
-The gateway setup is in [docs/waveshare-transparent-mode.md](docs/waveshare-transparent-mode.md).
-
-* `tools/bcu_cli.py` — bench CLI: `python3 tools/bcu_cli.py --host <gateway> --port 8899 [--params] [--json]`
-* `tools/mock_bcu.py` — replay server built from captured frames, for development without hardware
-* `python3 -m unittest discover -s tests` — protocol and client tests (standard library only)
-
-Tested against BCU firmware `HVP-B1018-30443-1.04`, protocol `HV-PACE-ALL-CA-DATA-V0.22`,
-with 4 × 32-cell BMU modules. Other module counts should work, since everything is sized from
-what the BCU reports; other BCU firmware may differ.
+Versions up to and including v0.3.0 were published under the MIT licence; that grant still
+applies to those exact releases. Everything from this commit onward is PolyForm Noncommercial.
