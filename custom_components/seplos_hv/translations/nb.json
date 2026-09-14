@@ -1,0 +1,131 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Seplos HV BMS",
+        "description": "Velg hvordan Home Assistant skal koble til BCU-1002C hovedstyringsenheten.",
+        "menu_options": {
+          "tcp": "Nettverk (TCP-gateway)",
+          "serial": "Seriell (USB RS485-adapter)"
+        }
+      },
+      "tcp": {
+        "title": "Nettverkstilkobling",
+        "description": "Koble til en Waveshare RS232/485/422 TO POE ETH (B)-gateway (eller tilsvarende) satt til transparent modus.",
+        "data": {
+          "host": "Vert",
+          "port": "Port"
+        },
+        "data_description": {
+          "host": "IP-adresse eller vertsnavn til TCP-gatewayen.",
+          "port": "TCP-port gatewayen lytter på (standard 8899)."
+        }
+      },
+      "serial": {
+        "title": "Seriell tilkobling",
+        "description": "Koble til en lokal USB RS485-adapter koblet til BCU-ens RS485-1-port.",
+        "data": {
+          "serial_port": "Serieport",
+          "baudrate": "Baudrate"
+        },
+        "data_description": {
+          "serial_port": "Enhetssti, f.eks. /dev/ttyUSB0.",
+          "baudrate": "Må stemme med BCU-ens konfigurerte baudrate (standard 57600)."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Kunne ikke koble til BCU-en.",
+      "timeout": "BCU-en svarte ikke i tide.",
+      "unknown": "Uventet feil."
+    },
+    "abort": {
+      "already_configured": "Denne BMS-en er allerede konfigurert."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Innstillinger for Seplos HV BMS",
+        "data": {
+          "fast_interval": "Raskt pollingintervall (sekunder)",
+          "medium_interval": "Middels pollingintervall (sekunder)",
+          "slow_interval": "Sakte pollingintervall (sekunder)",
+          "enable_cell_sensors": "Aktiver individuelle cellespenningssensorer"
+        },
+        "data_description": {
+          "fast_interval": "Hvor ofte pakkesammendrag og status leses (standard 15 s).",
+          "medium_interval": "Hvor ofte cellespenninger og temperaturer leses (standard 60 s).",
+          "slow_interval": "Hvor ofte vernparametere leses (standard 3600 s).",
+          "enable_cell_sensors": "Oppretter én sensor per celle (opptil 128). De finnes uansett, men er deaktivert som standard når denne er av."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "pack_voltage": { "name": "Pakkespenning" },
+      "collect_voltage": { "name": "Samlespenning" },
+      "load_voltage": { "name": "Lastspenning" },
+      "current": { "name": "Strøm" },
+      "power": { "name": "Effekt" },
+      "soc": { "name": "Ladenivå (SOC)" },
+      "soh": { "name": "Helsetilstand (SOH)" },
+      "remaining_capacity": { "name": "Gjenværende kapasitet" },
+      "full_capacity": { "name": "Full kapasitet" },
+      "design_capacity": { "name": "Nominell kapasitet" },
+      "remaining_energy": { "name": "Gjenværende energi" },
+      "cell_max_voltage": { "name": "Maks cellespenning" },
+      "cell_max_label": { "name": "Maks celle" },
+      "cell_min_voltage": { "name": "Min cellespenning" },
+      "cell_min_label": { "name": "Min celle" },
+      "cell_spread": { "name": "Cellespredning" },
+      "temp_max": { "name": "Maks temperatur" },
+      "temp_max_label": { "name": "Maks temperatursensor" },
+      "temp_min": { "name": "Min temperatur" },
+      "temp_min_label": { "name": "Min temperatursensor" },
+      "limit": { "name": "Grense {index}" },
+      "relay_word": { "name": "Relé-ord" },
+      "status_byte27": { "name": "Statusbyte 27" },
+      "status_byte30": { "name": "Statusbyte 30" },
+      "status_byte36": { "name": "Statusbyte 36" },
+      "protocol": { "name": "Protokoll" },
+      "firmware": { "name": "Fastvare" },
+      "bms_serial": { "name": "BMS-serienummer" },
+      "modules_online": { "name": "Moduler online" },
+      "cells_online": { "name": "Celler online" },
+      "modules_without_temp_sensors": { "name": "Moduler uten temperatursensorer" },
+      "headroom_spread_to_l1": { "name": "Margin til cellespredningsalarm" },
+      "headroom_min_temp_to_charge_inhibit": { "name": "Margin til ladesperre ved lav temperatur" },
+      "last_medium_update": { "name": "Siste celle-/temperaturoppdatering" },
+      "last_slow_update": { "name": "Siste oppdatering av vernparametere" },
+      "module_min_voltage": { "name": "Modul {module} min spenning" },
+      "module_max_voltage": { "name": "Modul {module} maks spenning" },
+      "module_spread": { "name": "Modul {module} spredning" },
+      "module_min_cell": { "name": "Modul {module} min celle" },
+      "module_max_cell": { "name": "Modul {module} maks celle" },
+      "module_sum_voltage": { "name": "Modul {module} sumspenning" },
+      "module_cell_count": { "name": "Modul {module} antall celler" },
+      "module_temp_sensor_count": { "name": "Modul {module} antall temperatursensorer" },
+      "module_temp_min": { "name": "Modul {module} min temperatur" },
+      "module_temp_max": { "name": "Modul {module} maks temperatur" },
+      "module_temp_avg": { "name": "Modul {module} snitt-temperatur" },
+      "cell_voltage": { "name": "Modul {module} celle {cell} spenning" },
+      "module_temp_sensor": { "name": "Modul {module} temperatursensor {sensor}" },
+      "bcu_temperature": { "name": "BCU-temperatur {sensor}" },
+      "param_trip": { "name": "{param} L{level} utløser" },
+      "param_recover": { "name": "{param} L{level} gjenopprett" }
+    },
+    "binary_sensor": {
+      "charge_relay": { "name": "Laderelé" },
+      "discharge_relay": { "name": "Utladningsrelé" },
+      "precharge_relay": { "name": "Forladningsrelé" },
+      "negative_relay": { "name": "Minus-relé" },
+      "heating_relay": { "name": "Varmerelé" },
+      "current_limiting": { "name": "Strømbegrensning" },
+      "bcu_standby": { "name": "BCU i standby" },
+      "module_temp_sensors_missing": { "name": "Manglende modultemperatursensorer" },
+      "cell_spread_warning": { "name": "Cellespredningsvarsel" }
+    }
+  }
+}

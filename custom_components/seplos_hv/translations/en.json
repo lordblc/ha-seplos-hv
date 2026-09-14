@@ -1,0 +1,131 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Seplos HV BMS",
+        "description": "Choose how Home Assistant reaches the BCU-1002C master control box.",
+        "menu_options": {
+          "tcp": "Network (TCP gateway)",
+          "serial": "Serial (USB RS485 adapter)"
+        }
+      },
+      "tcp": {
+        "title": "Network connection",
+        "description": "Connect to a Waveshare RS232/485/422 TO POE ETH (B) gateway (or similar) set to transparent mode.",
+        "data": {
+          "host": "Host",
+          "port": "Port"
+        },
+        "data_description": {
+          "host": "IP address or hostname of the TCP gateway.",
+          "port": "TCP port the gateway listens on (default 8899)."
+        }
+      },
+      "serial": {
+        "title": "Serial connection",
+        "description": "Connect to a local USB RS485 adapter wired to the BCU's RS485-1 port.",
+        "data": {
+          "serial_port": "Serial device",
+          "baudrate": "Baud rate"
+        },
+        "data_description": {
+          "serial_port": "Device path, e.g. /dev/ttyUSB0.",
+          "baudrate": "Must match the BCU's configured baud rate (default 57600)."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to the BCU.",
+      "timeout": "The BCU did not answer in time.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "This BMS is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Seplos HV BMS options",
+        "data": {
+          "fast_interval": "Fast poll interval (seconds)",
+          "medium_interval": "Medium poll interval (seconds)",
+          "slow_interval": "Slow poll interval (seconds)",
+          "enable_cell_sensors": "Enable individual cell voltage sensors"
+        },
+        "data_description": {
+          "fast_interval": "How often to read the pack summary and status (default 15 s).",
+          "medium_interval": "How often to read cell voltages and temperatures (default 60 s).",
+          "slow_interval": "How often to read the protection parameters (default 3600 s).",
+          "enable_cell_sensors": "Creates one sensor per cell (up to 128). They exist either way but stay disabled by default when this is off."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "pack_voltage": { "name": "Pack voltage" },
+      "collect_voltage": { "name": "Collect voltage" },
+      "load_voltage": { "name": "Load voltage" },
+      "current": { "name": "Current" },
+      "power": { "name": "Power" },
+      "soc": { "name": "State of charge" },
+      "soh": { "name": "State of health" },
+      "remaining_capacity": { "name": "Remaining capacity" },
+      "full_capacity": { "name": "Full capacity" },
+      "design_capacity": { "name": "Design capacity" },
+      "remaining_energy": { "name": "Remaining energy" },
+      "cell_max_voltage": { "name": "Max cell voltage" },
+      "cell_max_label": { "name": "Max cell" },
+      "cell_min_voltage": { "name": "Min cell voltage" },
+      "cell_min_label": { "name": "Min cell" },
+      "cell_spread": { "name": "Cell spread" },
+      "temp_max": { "name": "Max temperature" },
+      "temp_max_label": { "name": "Max temperature sensor" },
+      "temp_min": { "name": "Min temperature" },
+      "temp_min_label": { "name": "Min temperature sensor" },
+      "limit": { "name": "Limit {index}" },
+      "relay_word": { "name": "Relay word" },
+      "status_byte27": { "name": "Status byte 27" },
+      "status_byte30": { "name": "Status byte 30" },
+      "status_byte36": { "name": "Status byte 36" },
+      "protocol": { "name": "Protocol" },
+      "firmware": { "name": "Firmware" },
+      "bms_serial": { "name": "BMS serial" },
+      "modules_online": { "name": "Modules online" },
+      "cells_online": { "name": "Cells online" },
+      "modules_without_temp_sensors": { "name": "Modules without temperature sensors" },
+      "headroom_spread_to_l1": { "name": "Headroom to cell spread alarm" },
+      "headroom_min_temp_to_charge_inhibit": { "name": "Headroom to charge low-temp inhibit" },
+      "last_medium_update": { "name": "Last cell/temperature update" },
+      "last_slow_update": { "name": "Last protection parameter update" },
+      "module_min_voltage": { "name": "Module {module} min voltage" },
+      "module_max_voltage": { "name": "Module {module} max voltage" },
+      "module_spread": { "name": "Module {module} spread" },
+      "module_min_cell": { "name": "Module {module} min cell" },
+      "module_max_cell": { "name": "Module {module} max cell" },
+      "module_sum_voltage": { "name": "Module {module} sum voltage" },
+      "module_cell_count": { "name": "Module {module} cell count" },
+      "module_temp_sensor_count": { "name": "Module {module} temperature sensor count" },
+      "module_temp_min": { "name": "Module {module} min temperature" },
+      "module_temp_max": { "name": "Module {module} max temperature" },
+      "module_temp_avg": { "name": "Module {module} average temperature" },
+      "cell_voltage": { "name": "Module {module} cell {cell} voltage" },
+      "module_temp_sensor": { "name": "Module {module} temperature sensor {sensor}" },
+      "bcu_temperature": { "name": "BCU temperature {sensor}" },
+      "param_trip": { "name": "{param} L{level} trip" },
+      "param_recover": { "name": "{param} L{level} recover" }
+    },
+    "binary_sensor": {
+      "charge_relay": { "name": "Charge relay" },
+      "discharge_relay": { "name": "Discharge relay" },
+      "precharge_relay": { "name": "Precharge relay" },
+      "negative_relay": { "name": "Negative relay" },
+      "heating_relay": { "name": "Heating relay" },
+      "current_limiting": { "name": "Current limiting" },
+      "bcu_standby": { "name": "BCU standby" },
+      "module_temp_sensors_missing": { "name": "Module temperature sensors missing" },
+      "cell_spread_warning": { "name": "Cell spread warning" }
+    }
+  }
+}
