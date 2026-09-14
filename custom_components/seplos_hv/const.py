@@ -30,7 +30,7 @@ DEFAULT_BAUDRATE: Final = 57600
 DEFAULT_FAST_INTERVAL: Final = 15
 DEFAULT_MEDIUM_INTERVAL: Final = 60
 DEFAULT_SLOW_INTERVAL: Final = 3600
-DEFAULT_ENABLE_CELL_SENSORS: Final = False
+DEFAULT_ENABLE_CELL_SENSORS: Final = True
 
 # Interval bounds enforced by the options flow.
 MIN_FAST_INTERVAL: Final = 5
@@ -45,4 +45,4 @@ MAX_SLOW_INTERVAL: Final = 86400
 REQUEST_TIMEOUT: Final = 1.5
 
 # Integration version (keep in sync with manifest.json).
-VERSION: Final = "0.1.0"
+VERSION: Final = "0.1.1"
