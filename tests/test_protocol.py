@@ -235,7 +235,8 @@ class TestLabelsAndKelvin(unittest.TestCase):
         self.assertEqual(proto.cell_label(144), "BMU3 C17")  # live-verified, stride 64
         self.assertEqual(proto.cell_label(20), "BMU1 C21")
         self.assertEqual(proto.cell_label(18), "BMU1 C19")
-        self.assertEqual(proto.cell_label(32), "BMU2 C1")
+        self.assertEqual(proto.cell_label(64), "BMU2 C1")
+        self.assertEqual(proto.cell_label(127), "BMU2 C64")
 
     def test_temp_label(self):
         self.assertEqual(proto.temp_label(0), "BMU1 T1")
