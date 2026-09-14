@@ -86,7 +86,7 @@
         "name": "State of health"
       },
       "remaining_capacity": {
-        "name": "Remaining capacity"
+        "name": "Remaining capacity (real)"
       },
       "full_capacity": {
         "name": "Full capacity"
@@ -218,19 +218,56 @@
         "name": "{param} L{level} recover"
       },
       "soc_coulomb": {
-        "name": "SOC (coulomb counter)"
+        "name": "SOC (real, coulomb counter)"
       },
       "soc_usable": {
-        "name": "SOC (usable window)"
+        "name": "SOC (calibrated)"
       },
       "remaining_capacity_reported": {
-        "name": "Remaining capacity (reported)"
+        "name": "Remaining capacity"
       },
       "usable_remaining_capacity": {
-        "name": "Usable remaining capacity"
+        "name": "Remaining capacity (calibrated)"
       },
       "usable_full_capacity": {
-        "name": "Usable full capacity"
+        "name": "Full capacity (calibrated)"
+      },
+      "system_state": {
+        "name": "System state",
+        "state": {
+          "initializing": "Initializing",
+          "standby": "Standby",
+          "charging": "Charging",
+          "discharging": "Discharging",
+          "unknown": "Unknown"
+        }
+      },
+      "battery_mode": {
+        "name": "Battery mode",
+        "state": {
+          "none": "None",
+          "charge_mode": "Charge mode",
+          "discharge_mode": "Discharge mode",
+          "unknown": "Unknown"
+        }
+      },
+      "status_summary": {
+        "name": "Status summary"
+      },
+      "protection_l1": {
+        "name": "Protection L1"
+      },
+      "protection_l2": {
+        "name": "Protection L2"
+      },
+      "protection_l3": {
+        "name": "Protection L3"
+      },
+      "fault_status": {
+        "name": "Fault status"
+      },
+      "sensor_status_word": {
+        "name": "Sensor status word"
       }
     },
     "binary_sensor": {
@@ -252,14 +289,20 @@
       "current_limiting": {
         "name": "Current limiting"
       },
-      "bcu_standby": {
-        "name": "BCU standby"
-      },
       "module_temp_sensors_missing": {
         "name": "Module temperature sensors missing"
       },
       "cell_spread_warning": {
         "name": "Cell spread warning"
+      },
+      "protection_active": {
+        "name": "Protection active"
+      },
+      "fault_active": {
+        "name": "Fault active"
+      },
+      "charging": {
+        "name": "Charging"
       }
     }
   }

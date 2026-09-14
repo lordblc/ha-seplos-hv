@@ -86,7 +86,7 @@
         "name": "Helsetilstand (SOH)"
       },
       "remaining_capacity": {
-        "name": "Gjenværende kapasitet"
+        "name": "Gjenværende kapasitet (reell)"
       },
       "full_capacity": {
         "name": "Full kapasitet"
@@ -218,19 +218,56 @@
         "name": "{param} L{level} gjenopprett"
       },
       "soc_coulomb": {
-        "name": "SOC (coulomb-teller)"
+        "name": "SOC (reell, coulomb-teller)"
       },
       "soc_usable": {
-        "name": "SOC (brukbart vindu)"
+        "name": "SOC (kalibrert)"
       },
       "remaining_capacity_reported": {
-        "name": "Gjenværende kapasitet (rapportert)"
+        "name": "Gjenværende kapasitet"
       },
       "usable_remaining_capacity": {
-        "name": "Brukbar gjenværende kapasitet"
+        "name": "Gjenværende kapasitet (kalibrert)"
       },
       "usable_full_capacity": {
-        "name": "Brukbar full kapasitet"
+        "name": "Full kapasitet (kalibrert)"
+      },
+      "system_state": {
+        "name": "Systemtilstand",
+        "state": {
+          "initializing": "Initialiserer",
+          "standby": "Standby",
+          "charging": "Lader",
+          "discharging": "Utlader",
+          "unknown": "Ukjent"
+        }
+      },
+      "battery_mode": {
+        "name": "Batterimodus",
+        "state": {
+          "none": "Ingen",
+          "charge_mode": "Lademodus",
+          "discharge_mode": "Utlademodus",
+          "unknown": "Ukjent"
+        }
+      },
+      "status_summary": {
+        "name": "Statussammendrag"
+      },
+      "protection_l1": {
+        "name": "Beskyttelse nivå 1"
+      },
+      "protection_l2": {
+        "name": "Beskyttelse nivå 2"
+      },
+      "protection_l3": {
+        "name": "Beskyttelse nivå 3"
+      },
+      "fault_status": {
+        "name": "Feilstatus"
+      },
+      "sensor_status_word": {
+        "name": "Sensorstatusord"
       }
     },
     "binary_sensor": {
@@ -252,14 +289,20 @@
       "current_limiting": {
         "name": "Strømbegrensning"
       },
-      "bcu_standby": {
-        "name": "BCU i standby"
-      },
       "module_temp_sensors_missing": {
         "name": "Manglende modultemperatursensorer"
       },
       "cell_spread_warning": {
         "name": "Cellespredningsvarsel"
+      },
+      "protection_active": {
+        "name": "Beskyttelse aktiv"
+      },
+      "fault_active": {
+        "name": "Feil aktiv"
+      },
+      "charging": {
+        "name": "Lader"
       }
     }
   }

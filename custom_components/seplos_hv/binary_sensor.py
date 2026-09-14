@@ -17,18 +17,6 @@ from .coordinator import SeplosHvConfigEntry, SeplosHvCoordinator, SeplosHvData
 from .entity import SeplosHvEntity
 
 
-def _is_bcu_standby(data: SeplosHvData) -> bool:
-    """True when the BCU reports system state 1 in status byte 36.
-
-    Observed: byte 36 == 1 while the vendor UI showed "Standby" and the BCU
-    advertised 0 A limits to the inverter; byte 36 == 2 once it advertised
-    +/-32 A and the inverter charged/discharged normally. The four u32 values
-    at summary offsets 50..65 stay 0 in both states, so they are NOT the
-    limits and are not used here.
-    """
-    return data.status.byte36 == 1
-
-
 def _is_cell_spread_warning(data: SeplosHvData) -> bool:
     """True when the pack spread has reached the L1 trip of cell_delta_charge."""
     block = data.params.get("cell_delta_charge")
@@ -79,10 +67,22 @@ BINARY_SENSOR_DESCRIPTIONS: tuple[SeplosHvBinarySensorEntityDescription, ...] = 
         value_fn=lambda d: d.status.current_limiting,
     ),
     SeplosHvBinarySensorEntityDescription(
-        key="bcu_standby",
-        translation_key="bcu_standby",
+        key="protection_active",
+        translation_key="protection_active",
         device_class=BinarySensorDeviceClass.PROBLEM,
-        value_fn=_is_bcu_standby,
+        value_fn=lambda d: d.status.any_protection,
+    ),
+    SeplosHvBinarySensorEntityDescription(
+        key="fault_active",
+        translation_key="fault_active",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        value_fn=lambda d: bool(d.status.fault),
+    ),
+    SeplosHvBinarySensorEntityDescription(
+        key="charging",
+        translation_key="charging",
+        device_class=BinarySensorDeviceClass.BATTERY_CHARGING,
+        value_fn=lambda d: d.status.sys_status == 2,
     ),
     SeplosHvBinarySensorEntityDescription(
         key="module_temp_sensors_missing",

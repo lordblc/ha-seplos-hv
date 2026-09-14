@@ -188,6 +188,15 @@ class TestDecodeStatus(unittest.TestCase):
         status = proto.decode_status(payload)
         self.assertIsInstance(status.relay_word, int)
         self.assertEqual(status.raw, payload)
+        self.assertEqual(status.sys_status, 1)          # fixture captured in Standby
+        self.assertEqual(status.system_state, "standby")
+        self.assertEqual(status.active_summary, "normal")
+        self.assertEqual(status.relay_real, 0x0B)
+        self.assertEqual(proto.decode_bits(0x04180000, proto.PROTECT_BITS),
+                         ["charge cell delta too large", "discharge cell delta too large",
+                          "terminal high temperature"])
+        self.assertEqual(proto.decode_bits(0x00008000, proto.PROTECT_BITS), ["SOC high"])
+        self.assertEqual(proto.decode_bits(0x00200000, proto.FAULT_BITS), ["total voltage fault"])
 
     def test_status_raises_on_short_payload(self):
         with self.assertRaises(proto.FrameError):

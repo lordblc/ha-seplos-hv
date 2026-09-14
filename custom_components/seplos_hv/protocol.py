@@ -357,6 +357,95 @@ def decode_summary(payload: bytes) -> PackSummary:
     )
 
 
+# ---------------------------------------------------------------- status (0x000B)
+# Layout of the 38-byte reply, matched against the vendor tool's own export
+# columns (HV-Energy Storage Systems V1.1.63T2, Language.xls + BMS.db logs):
+#   0..3   Protect L1 word     (一级保护)      4..7   Protect L2 word
+#   8..11  Protect L3 word                     12..15 Fault word          (故障)
+#   16..19 switch control status (relay word) 20..23 switch response status
+#   24..27 relay real status (different bit layout: bit0 charge, 1 discharge,
+#          2 precharge, 3 negative, 4 heating)  28..31 sensor status
+#   32..35 special status                      36 system status  37 battery status
+#
+# Protection bit names: the vendor language table lists them in this order.
+# Bits 2, 4, 15, 19, 20 and 26 are VERIFIED against decoded values in the
+# vendor tool's 2023 logs (0x00000004 pack OV, 0x00000010 charge OC,
+# 0x00008000 SOC high, 0x04180000 = charge delta + discharge delta +
+# terminal high temp). The remaining positions follow the table order between
+# those anchors and are marked as inferred.
+PROTECT_BITS: dict[int, str] = {
+    0: "cell over-voltage",
+    1: "cell under-voltage",
+    2: "pack over-voltage",                 # verified
+    3: "pack under-voltage",
+    4: "charge over-current",               # verified
+    5: "discharge over-current",
+    6: "charge high temperature",
+    7: "discharge high temperature",
+    8: "charge low temperature",
+    9: "discharge low temperature",
+    10: "ambient high temperature",
+    11: "ambient low temperature",
+    12: "charge relay high temperature",
+    13: "discharge relay high temperature",
+    14: "negative relay high temperature",
+    15: "SOC high",                         # verified
+    16: "SOC low",
+    17: "positive insulation leakage",
+    18: "negative insulation leakage",
+    19: "charge cell delta too large",      # verified
+    20: "discharge cell delta too large",   # verified
+    21: "charge temperature delta too large",
+    22: "discharge temperature delta too large",
+    23: "cell temperature rise",
+    24: "cell sampling abnormal",
+    25: "NTC sampling abnormal",
+    26: "terminal high temperature",        # verified
+}
+
+# Fault bit names in the vendor table order. Bit 21 (total voltage fault,
+# 0x00200000) is VERIFIED from the 2023 logs; the table lists three more
+# items between "NTC fault" and "total voltage fault" than that position
+# allows, so bits 17..20 are left generic. Bits 0..16 follow the table.
+FAULT_BITS: dict[int, str] = {
+    0: "charge relay stuck",
+    1: "charge relay failed",
+    2: "discharge relay stuck",
+    3: "discharge relay failed",
+    4: "precharge relay stuck",
+    5: "precharge relay failed",
+    6: "negative relay stuck",
+    7: "negative relay failed",
+    8: "heating relay stuck",
+    9: "heating relay failed",
+    10: "12 V abnormal",
+    11: "cell fault",
+    12: "precharge fault",
+    13: "heating film fault",
+    14: "insulation board communication fault",
+    15: "sampling board communication fault",
+    16: "current shunt fault",
+    21: "total voltage fault",              # verified
+}
+
+# Byte 36. 1 observed with the vendor UI showing "Standby" (0 A, 09-08),
+# 2 observed while charging (+17 A, 09-13) and 3 in 2023 logs while
+# discharging; 0 is assumed to be "Initializing" from the UI's state list.
+SYS_STATUS: dict[int, str] = {
+    0: "initializing",
+    1: "standby",
+    2: "charging",
+    3: "discharging",
+}
+# Byte 37 ("battery status"): 0 none, 4 charge mode, 5 discharge mode (observed).
+BATT_STATUS: dict[int, str] = {0: "none", 4: "charge_mode", 5: "discharge_mode"}
+
+
+def decode_bits(word: int, table: dict[int, str]) -> list[str]:
+    """Names of the set bits in ``word``; unknown bits become ``bit N``."""
+    return [table.get(i, f"bit {i}") for i in range(32) if word >> i & 1]
+
+
 @dataclass
 class Status:
     relay_word: int
@@ -370,13 +459,73 @@ class Status:
     byte27: int
     byte30: int
     byte36: int
+    protect_l1: int = 0
+    protect_l2: int = 0
+    protect_l3: int = 0
+    fault: int = 0
+    relay_response: int = 0
+    relay_real: int = 0
+    sensor_status: int = 0
+    special_status: int = 0
+    sys_status: int = 0
+    batt_status: int = 0
+
+    @property
+    def protect_l1_names(self) -> list[str]:
+        return decode_bits(self.protect_l1, PROTECT_BITS)
+
+    @property
+    def protect_l2_names(self) -> list[str]:
+        return decode_bits(self.protect_l2, PROTECT_BITS)
+
+    @property
+    def protect_l3_names(self) -> list[str]:
+        return decode_bits(self.protect_l3, PROTECT_BITS)
+
+    @property
+    def fault_names(self) -> list[str]:
+        return decode_bits(self.fault, FAULT_BITS)
+
+    @property
+    def any_protection(self) -> bool:
+        return bool(self.protect_l1 or self.protect_l2 or self.protect_l3)
+
+    @property
+    def system_state(self) -> str:
+        return SYS_STATUS.get(self.sys_status, "unknown")
+
+    @property
+    def battery_mode(self) -> str:
+        return BATT_STATUS.get(self.batt_status, "unknown")
+
+    @property
+    def active_summary(self) -> str:
+        """One-line status: highest active tier first, e.g. 'L2: cell over-voltage'."""
+        parts = []
+        if self.fault:
+            parts.append("FAULT: " + ", ".join(self.fault_names))
+        for level, word, names in (
+            (3, self.protect_l3, self.protect_l3_names),
+            (2, self.protect_l2, self.protect_l2_names),
+            (1, self.protect_l1, self.protect_l1_names),
+        ):
+            if word:
+                parts.append(f"L{level}: " + ", ".join(names))
+        return " | ".join(parts) if parts else "normal"
 
 
 def decode_status(payload: bytes) -> Status:
-    """Decode the 0x000B status/relay reply. Relay word is a u32 BE at bytes 16..19."""
+    """Decode the 0x000B status reply (38 bytes, see layout comment above)."""
     if len(payload) < 37:
         raise FrameError(f"status payload too short: {len(payload)} bytes, need >=37")
+    protect_l1, protect_l2, protect_l3, fault = struct.unpack(">IIII", payload[0:16])
     relay_word = struct.unpack(">I", payload[16:20])[0]
+    relay_response = struct.unpack(">I", payload[20:24])[0]
+    relay_real = struct.unpack(">I", payload[24:28])[0]
+    sensor_status = struct.unpack(">I", payload[28:32])[0]
+    special_status = struct.unpack(">I", payload[32:36])[0]
+    sys_status = payload[36]
+    batt_status = payload[37] if len(payload) > 37 else 0
     return Status(
         relay_word=relay_word,
         current_limiting=bool(relay_word & (1 << 0)),
@@ -388,7 +537,11 @@ def decode_status(payload: bytes) -> Status:
         raw=bytes(payload),
         byte27=payload[27],
         byte30=payload[30],
-        byte36=payload[36],
+        byte36=sys_status,
+        protect_l1=protect_l1, protect_l2=protect_l2, protect_l3=protect_l3, fault=fault,
+        relay_response=relay_response, relay_real=relay_real,
+        sensor_status=sensor_status, special_status=special_status,
+        sys_status=sys_status, batt_status=batt_status,
     )
 
 

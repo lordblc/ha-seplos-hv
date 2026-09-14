@@ -35,7 +35,7 @@ from homeassistant.helpers.typing import StateType
 from .const import CONF_ENABLE_CELL_SENSORS, DEFAULT_ENABLE_CELL_SENSORS
 from .coordinator import SeplosHvConfigEntry, SeplosHvCoordinator, SeplosHvData
 from .entity import SeplosHvEntity
-from .protocol import ModuleCells, ModuleTemps, ParamLevel
+from .protocol import BATT_STATUS, SYS_STATUS, ModuleCells, ModuleTemps, ParamLevel
 
 # Ampere-hour has no dedicated HA unit constant; used as a plain string.
 UNIT_AH = "Ah"
@@ -280,6 +280,68 @@ PACK_SENSOR_DESCRIPTIONS: tuple[SeplosHvSensorEntityDescription, ...] = (
         key="temp_min_label",
         translation_key="temp_min_label",
         value_fn=lambda d: d.summary.min_temp_label,
+    ),
+    SeplosHvSensorEntityDescription(
+        key="system_state",
+        translation_key="system_state",
+        device_class=SensorDeviceClass.ENUM,
+        options=[*SYS_STATUS.values(), "unknown"],
+        value_fn=lambda d: d.status.system_state,
+        attributes_fn=lambda d: {"code": d.status.sys_status},
+    ),
+    SeplosHvSensorEntityDescription(
+        key="battery_mode",
+        translation_key="battery_mode",
+        device_class=SensorDeviceClass.ENUM,
+        options=[*BATT_STATUS.values(), "unknown"],
+        value_fn=lambda d: d.status.battery_mode,
+        attributes_fn=lambda d: {"code": d.status.batt_status},
+    ),
+    SeplosHvSensorEntityDescription(
+        key="status_summary",
+        translation_key="status_summary",
+        value_fn=lambda d: d.status.active_summary[:255],
+        attributes_fn=lambda d: {
+            "protect_l1": d.status.protect_l1_names,
+            "protect_l2": d.status.protect_l2_names,
+            "protect_l3": d.status.protect_l3_names,
+            "fault": d.status.fault_names,
+        },
+    ),
+    SeplosHvSensorEntityDescription(
+        key="protection_l1",
+        translation_key="protection_l1",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda d: (", ".join(d.status.protect_l1_names) or "none")[:255],
+        attributes_fn=lambda d: {"raw": f"0x{d.status.protect_l1:08X}"},
+    ),
+    SeplosHvSensorEntityDescription(
+        key="protection_l2",
+        translation_key="protection_l2",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda d: (", ".join(d.status.protect_l2_names) or "none")[:255],
+        attributes_fn=lambda d: {"raw": f"0x{d.status.protect_l2:08X}"},
+    ),
+    SeplosHvSensorEntityDescription(
+        key="protection_l3",
+        translation_key="protection_l3",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda d: (", ".join(d.status.protect_l3_names) or "none")[:255],
+        attributes_fn=lambda d: {"raw": f"0x{d.status.protect_l3:08X}"},
+    ),
+    SeplosHvSensorEntityDescription(
+        key="fault_status",
+        translation_key="fault_status",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda d: (", ".join(d.status.fault_names) or "none")[:255],
+        attributes_fn=lambda d: {"raw": f"0x{d.status.fault:08X}"},
+    ),
+    SeplosHvSensorEntityDescription(
+        key="sensor_status_word",
+        translation_key="sensor_status_word",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda d: f"0x{d.status.sensor_status:08X}",
     ),
     SeplosHvSensorEntityDescription(
         key="relay_word",

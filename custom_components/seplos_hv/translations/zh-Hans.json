@@ -86,7 +86,7 @@
         "name": "健康状态（SOH）"
       },
       "remaining_capacity": {
-        "name": "剩余容量"
+        "name": "真实剩余容量"
       },
       "full_capacity": {
         "name": "满充容量"
@@ -218,19 +218,56 @@
         "name": "{param} L{level} 恢复"
       },
       "soc_coulomb": {
-        "name": "荷电状态（库仑计数）"
+        "name": "真实SOC"
       },
       "soc_usable": {
-        "name": "荷电状态（可用窗口）"
+        "name": "校准SOC"
       },
       "remaining_capacity_reported": {
-        "name": "剩余容量（上报值）"
+        "name": "剩余容量"
       },
       "usable_remaining_capacity": {
-        "name": "可用剩余容量"
+        "name": "校准剩余容量"
       },
       "usable_full_capacity": {
-        "name": "可用满充容量"
+        "name": "校准满充容量"
+      },
+      "system_state": {
+        "name": "系统状态",
+        "state": {
+          "initializing": "初始化",
+          "standby": "待机",
+          "charging": "充电",
+          "discharging": "放电",
+          "unknown": "未知"
+        }
+      },
+      "battery_mode": {
+        "name": "电池状态",
+        "state": {
+          "none": "无",
+          "charge_mode": "充电模式",
+          "discharge_mode": "放电模式",
+          "unknown": "未知"
+        }
+      },
+      "status_summary": {
+        "name": "状态摘要"
+      },
+      "protection_l1": {
+        "name": "一级保护"
+      },
+      "protection_l2": {
+        "name": "二级保护"
+      },
+      "protection_l3": {
+        "name": "三级保护"
+      },
+      "fault_status": {
+        "name": "故障状态"
+      },
+      "sensor_status_word": {
+        "name": "传感器状态字"
       }
     },
     "binary_sensor": {
@@ -252,14 +289,20 @@
       "current_limiting": {
         "name": "限流中"
       },
-      "bcu_standby": {
-        "name": "BCU 待机"
-      },
       "module_temp_sensors_missing": {
         "name": "模组温度传感器缺失"
       },
       "cell_spread_warning": {
         "name": "单体压差告警"
+      },
+      "protection_active": {
+        "name": "保护触发"
+      },
+      "fault_active": {
+        "name": "故障触发"
+      },
+      "charging": {
+        "name": "充电中"
       }
     }
   }
