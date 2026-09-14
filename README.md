@@ -1,6 +1,11 @@
+<p align="center">
+  <img src="icons/icon@2x.png" alt="Seplos HV BMS" width="140" height="140">
+</p>
+
 # Seplos HV BMS for Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![Validate](https://github.com/lordblc/ha-seplos-hv/actions/workflows/validate.yaml/badge.svg)](https://github.com/lordblc/ha-seplos-hv/actions/workflows/validate.yaml)
 
 Home Assistant integration for a **Seplos HV Master Control Box (BCU-1002C)**, polled over
 its proprietary RS485-1 protocol. It exposes pack, module, cell, temperature and protection-
@@ -9,7 +14,7 @@ parameter data as sensors — nothing is written back to the BMS.
 ## Read-only guarantee
 
 This integration **never writes to the BCU**. It only ever sends the small, fixed set of
-read-only query commands documented in `SPEC.md` (identity, pack summary, status, cell
+read-only query commands documented in `docs/SPEC.md` (identity, pack summary, status, cell
 voltages, temperatures, and protection-parameter reads), each with a zero-length request
 payload. There are no switches, numbers, buttons or services — nothing in this integration
 can change a setting or a relay state on your battery. All charge/discharge control stays
@@ -115,3 +120,18 @@ name.
 ## License
 
 MIT © 2026 lordblc
+
+## Protocol notes and development
+
+The BCU does **not** speak Modbus on RS485-1, even though Seplos publishes a Modbus document
+for their per-pack BMS products. The wire protocol used here was reverse-engineered from the
+vendor tool's own frame log and is documented in [docs/protocol-reference.md](docs/protocol-reference.md).
+The gateway setup is in [docs/waveshare-transparent-mode.md](docs/waveshare-transparent-mode.md).
+
+* `tools/bcu_cli.py` — bench CLI: `python3 tools/bcu_cli.py --host <gateway> --port 8899 [--params] [--json]`
+* `tools/mock_bcu.py` — replay server built from captured frames, for development without hardware
+* `python3 -m unittest discover -s tests` — protocol and client tests (standard library only)
+
+Tested against BCU firmware `HVP-B1018-30443-1.04`, protocol `HV-PACE-ALL-CA-DATA-V0.22`,
+with 4 × 32-cell BMU modules. Other module counts should work, since everything is sized from
+what the BCU reports; other BCU firmware may differ.
