@@ -77,6 +77,12 @@ Changing any option reloads the config entry.
 
 ## Entities
 
+A one-line **status summary** sensor shows the BMS state at a glance (`normal`, or e.g.
+`L1: cell over-voltage | FAULT: total voltage fault`), alongside enum sensors for system state
+(standby / charging / discharging) and battery mode, per-level protection sensors, a fault
+sensor, and `protection_active` / `fault_active` problem binary sensors.
+
+
 One device per config entry, named after the BCU's reported protocol/firmware/serial.
 
 **Pack-level sensors**: voltage, collect voltage, load voltage (diagnostic), current, power,

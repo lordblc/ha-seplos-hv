@@ -106,6 +106,34 @@ Even ids are presumed to be the matching writes and were never issued.
 
 ## 4. Payload decoders
 
+### Status — `0x000B` (38 bytes) — layout from the vendor tool's export columns
+
+| Bytes | Field | Notes |
+|---|---|---|
+| 0–3 / 4–7 / 8–11 | Protection L1 / L2 / L3 bit words | names below |
+| 12–15 | Fault bit word | names below |
+| 16–19 | switch control status (relay word) | bit0 current-limit, 1 charge, 2 discharge, 3 precharge, 4 negative, 5 heating |
+| 20–23 | switch response status | same layout |
+| 24–27 | relay real status | bit0 charge, 1 discharge, 2 precharge, 3 negative, 4 heating |
+| 28–31 | sensor status | `0x0300` on this unit, bits unmapped |
+| 32–35 | special status | |
+| 36 | system status | 1 standby, 2 charging, 3 discharging (observed); 0 initializing (assumed) |
+| 37 | battery status | 0 none, 4 charge mode, 5 discharge mode (observed) |
+
+Protection bits (vendor `Language.xls` order; bits 2, 4, 15, 19, 20, 26 verified against decoded
+values in the tool's 2023 logs): 0 cell OV, 1 cell UV, 2 pack OV, 3 pack UV, 4 charge OC,
+5 discharge OC, 6 charge high T, 7 discharge high T, 8 charge low T, 9 discharge low T,
+10 ambient high T, 11 ambient low T, 12/13/14 charge/discharge/negative relay high T,
+15 SOC high, 16 SOC low, 17/18 positive/negative insulation leakage, 19/20 charge/discharge
+cell delta, 21/22 charge/discharge temperature delta, 23 cell temperature rise, 24 cell sampling
+abnormal, 25 NTC sampling abnormal, 26 terminal high T.
+
+Fault bits: 0–9 relay stuck/failed pairs (charge, discharge, precharge, negative, heating),
+10 12 V abnormal, 11 cell fault, 12 precharge fault, 13 heating film fault, 14 insulation board
+comm, 15 sampling board comm, 16 current shunt fault, 21 total voltage fault (verified). The table
+also lists NTC, AFE comm, e-stop, water immersion, smoke, Hall, bridge voltage, MCU supply OV,
+parameter-config-failed, HV-loop and relay-switching-frequency faults at unconfirmed positions.
+
 ### Cell voltages — `0x000C`
 
 ```
