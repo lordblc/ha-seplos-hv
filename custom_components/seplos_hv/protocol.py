@@ -213,10 +213,13 @@ def decode_string(payload: bytes) -> str:
 
 
 def cell_label(index: int) -> str:
-    """0-based pack cell index -> 'BMU<n> C<m>' (module = index//32+1)."""
-    module = index // 32 + 1
-    cell = index % 32 + 1
-    return f"BMU{module} C{cell}"
+    """Label a summary-frame cell index, e.g. 144 -> "BMU3 C17".
+
+    The BCU numbers cells with a stride of 64 per module (like temperatures),
+    not 32: verified live 2026-09-14 when the summary reported index 144 for
+    the highest cell while the per-cell block showed it at BMU3 C17.
+    """
+    return f"BMU{index // 64 + 1} C{index % 64 + 1}"
 
 
 def temp_label(index: int) -> str:

@@ -232,6 +232,7 @@ class TestDecodeParams(unittest.TestCase):
 
 class TestLabelsAndKelvin(unittest.TestCase):
     def test_cell_label(self):
+        self.assertEqual(proto.cell_label(144), "BMU3 C17")  # live-verified, stride 64
         self.assertEqual(proto.cell_label(20), "BMU1 C21")
         self.assertEqual(proto.cell_label(18), "BMU1 C19")
         self.assertEqual(proto.cell_label(32), "BMU2 C1")
