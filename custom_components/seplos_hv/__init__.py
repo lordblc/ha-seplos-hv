@@ -27,6 +27,7 @@ from .const import (
     DOMAIN,
     SERVICE_WRITE_PARAM,
 )
+from .client import SeplosConnectionError, SeplosTimeout
 from .coordinator import SeplosHvConfigEntry, SeplosHvCoordinator
 from .writes import ParamValidationError
 
@@ -143,11 +144,17 @@ def _async_register_write_param_service(hass: HomeAssistant) -> None:
             )
         except (KeyError, ValueError, ParamValidationError) as err:
             raise ServiceValidationError(str(err)) from err
+        except (SeplosConnectionError, SeplosTimeout) as err:
+            # A real (dry_run=False) write aborts outright if the fresh pre-write baseline
+            # read fails - see async_write_param's docstring. Surface that as a clean
+            # service error rather than an unhandled exception.
+            raise ServiceValidationError(f"Could not reach the BCU: {err}") from err
 
         return {
             "frame_hex": result.frame_hex,
             "sent": result.sent,
             "verified": result.verified,
+            "baseline": result.baseline,
             "reply_cmd": f"0x{result.reply.cmd:04X}" if result.reply is not None else None,
             "reply_payload_hex": (
                 result.reply.payload.hex(" ").upper() if result.reply is not None else None

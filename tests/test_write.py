@@ -256,6 +256,118 @@ async def _serve_write_double(
     return await asyncio.start_server(handle, host="127.0.0.1", port=port)
 
 
+async def _serve_sequence_double(port: int, replies: list[tuple[int, bytes]]) -> asyncio.Server:
+    """Like _serve_write_double, but for an arbitrary ordered sequence of (cmd, payload)
+    replies - one per incoming frame, in order, regardless of that frame's own cmd. Used
+    to simulate "read the fresh baseline, then write, then read back" (3 exchanges) for
+    the fresh-vs-cached-baseline tests.
+    """
+
+    def _build(cmd: int, payload: bytes) -> bytes:
+        header = (
+            bytes([proto.SOF, proto.BCU_ADDR, proto.HOST_ADDR])
+            + cmd.to_bytes(2, "big") + b"\x00" + len(payload).to_bytes(2, "big")
+        )
+        frame = header + payload
+        return frame + proto.crc16(frame).to_bytes(2, "big") + bytes([proto.EOF])
+
+    async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        parser = proto.FrameParser()
+        queue = list(replies)
+        try:
+            while queue:
+                data = await reader.read(4096)
+                if not data:
+                    break
+                for _frame in parser.feed(data):
+                    if not queue:
+                        break
+                    cmd, payload = queue.pop(0)
+                    writer.write(_build(cmd, payload))
+                    await writer.drain()
+        except (ConnectionResetError, BrokenPipeError):
+            pass
+        finally:
+            writer.close()
+
+    return await asyncio.start_server(handle, host="127.0.0.1", port=port)
+
+
+class TestReadParam(unittest.IsolatedAsyncioTestCase):
+    async def test_read_param_decodes_a_single_group(self):
+        payload = _first_reply_payload(0x0209)
+        server = await _serve_sequence_double(0, [(0x0209, payload)])
+        port = server.sockets[0].getsockname()[1]
+        client = SeplosHvClient(host="127.0.0.1", port=port, timeout=2.0)
+        try:
+            block = await client.read_param(0x0209)
+            self.assertEqual(block.key, "charge_over_current")
+            self.assertEqual(block.levels[0].trip, 90.0)
+        finally:
+            await client.close()
+            server.close()
+            await server.wait_closed()
+
+
+class TestFreshBaselineNotStaleCached(unittest.IsolatedAsyncioTestCase):
+    """Reproduces the coordinator's fetch-fresh-before-write flow directly against the
+    client (coordinator.py itself needs homeassistant, unavailable on this dev machine) -
+    proves the write path, given a fresh read_param() call, uses the DEVICE's current
+    value as the baseline rather than some other (e.g. stale/cached) block passed in from
+    elsewhere.
+    """
+
+    async def test_write_flow_uses_freshly_read_value_not_a_stale_one(self):
+        fixture_payload = _first_reply_payload(0x0209)
+        fresh_block = proto.decode_params(0x0209, fixture_payload)
+        # A deliberately different "stale" block - if the write flow used this instead of
+        # the fresh read, the 20% step guard below would see a different (and wrong) base.
+        stale_block = proto.apply_param_change(fresh_block, 0, "trip", 200)
+        self.assertNotEqual(stale_block.levels[0].trip, fresh_block.levels[0].trip)
+
+        target_trip = 95  # +5.6% over the fresh baseline (90), within the 20% guard;
+        # +5.6% would be safe against fresh (90) but a -52.5% "drop" against stale (200) -
+        # different bases give different guard outcomes, which is exactly what this test
+        # distinguishes.
+        changed = proto.apply_param_change(fresh_block, 0, "trip", target_trip)
+        new_payload = proto.encode_params(changed)
+
+        server = await _serve_sequence_double(
+            0,
+            [
+                (0x0209, fixture_payload),  # (1) fresh baseline read
+                (0x0208, new_payload),      # (2) write ack
+                (0x0209, new_payload),      # (3) read-back
+            ],
+        )
+        port = server.sockets[0].getsockname()[1]
+        client = SeplosHvClient(host="127.0.0.1", port=port, timeout=2.0)
+        try:
+            # Step 1: fresh read, exactly what the coordinator does before validating.
+            baseline = await client.read_param(0x0209)
+            self.assertEqual(baseline.levels[0].trip, fresh_block.levels[0].trip)
+            self.assertNotEqual(baseline.levels[0].trip, stale_block.levels[0].trip)
+
+            # Step 2: the 20% guard, evaluated against the fresh baseline (matches
+            # coordinator.async_write_param's own check_step_guard call).
+            writes.check_step_guard("trip", baseline.levels[0].trip, target_trip, force=False)
+            with self.assertRaises(writes.ParamValidationError):
+                # Same target, but against the stale baseline: proves the two bases
+                # genuinely disagree on whether this step is allowed.
+                writes.check_step_guard(
+                    "trip", stale_block.levels[0].trip, target_trip, force=False
+                )
+
+            # Step 3: write + verify, using the fresh-derived block throughout.
+            result = await client.write_params(0x0209, changed, dry_run=False)
+            self.assertTrue(result.verified)
+            self.assertEqual(result.readback.levels[0].trip, target_trip)
+        finally:
+            await client.close()
+            server.close()
+            await server.wait_closed()
+
+
 class TestWriteParamsRealWrite(unittest.IsolatedAsyncioTestCase):
     async def test_real_write_verified_true_on_matching_readback(self):
         block = proto.decode_params(0x0209, _first_reply_payload(0x0209))

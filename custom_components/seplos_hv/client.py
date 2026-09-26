@@ -111,7 +111,11 @@ class WriteResult:
     raw ack Frame from the BCU - its payload shape is UNVERIFIED, so it is never decoded
     or validated, only logged and returned for inspection. ``readback``/``verified`` come
     from a fresh read of the same parameter group performed immediately after a real
-    (non-dry-run) write.
+    (non-dry-run) write. ``baseline`` is set by the caller (SeplosHvCoordinator.
+    async_write_param), not by write_params() itself, to "fresh" or "cached" depending on
+    whether a fresh pre-write read of the group succeeded - it defaults to "fresh" so a
+    WriteResult built anywhere else (e.g. directly against the client, as in tests) is not
+    misleadingly marked "cached".
     """
 
     frame_hex: str
@@ -119,6 +123,7 @@ class WriteResult:
     reply: Frame | None
     readback: ParamBlock | None
     verified: bool
+    baseline: str = "fresh"
 
 
 class SeplosHvClient:
@@ -298,6 +303,15 @@ class SeplosHvClient:
             frame = await self.request(cmd)
             result[key] = decode_params(cmd, frame.payload)
         return result
+
+    async def read_param(self, read_cmd: int) -> ParamBlock:
+        """Read a single parameter group, fresh, through the normal request()/lock path.
+
+        Used by the write path to get an up-to-date baseline for exactly one group
+        without re-polling all ``len(PARAM_CMDS)`` of them (unlike ``read_params()``).
+        """
+        frame = await self.request(read_cmd)
+        return decode_params(read_cmd, frame.payload)
 
     async def write_params(
         self, read_cmd: int, block: ParamBlock, *, dry_run: bool = True

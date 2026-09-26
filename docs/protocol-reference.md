@@ -365,6 +365,21 @@ that can produce a non-zero-payload frame, and it refuses everything outside tha
 5. Only after (3)-(4) succeed once, cautiously, consider a parameter that actually needs
    changing. Treat every write as unverified until independently confirmed.
 
+### Baseline freshness
+
+The coordinator's cached `params` snapshot can be up to `slow_interval` (3600 s by default)
+old. `async_write_param` never validates or diffs against that stale cache: before every
+write (dry run or real) it fetches a **fresh** single-group read of just that one parameter
+(`client.read_param`, through the normal request()/lock path — never re-polling all 20
+groups) and uses that as the baseline for the 20% step guard, for building the new block, and
+for the `old_value` reported in the event and the service response. A dry run falls back to
+the cached value if the fresh read fails (`baseline: "cached"` in the result, vs. `"fresh"`
+otherwise) so it can still report *something*; a real write ABORTS outright on a failed fresh
+read rather than risk writing against a value that may no longer hold. After a real write,
+only the read-back block is merged into the cached snapshot and pushed to entities
+(`async_set_updated_data`) — deliberately not a full slow-tier re-poll for a one-parameter
+change.
+
 ---
 
 ## 8. Connecting the Solis inverter

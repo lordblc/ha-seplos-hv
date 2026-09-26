@@ -250,13 +250,33 @@ class SeplosHvCoordinator(DataUpdateCoordinator[SeplosHvData]):
         of "trip", "recover", "trip_delay", "recover_delay" (no "_s" suffix - that is an
         internal protocol.py/ParamLevel spelling). Raises ParamValidationError if the
         value is out of range, or is a >20% single step on a trip/recover threshold and
-        ``force`` is not True. Raises KeyError if ``key`` is not a known parameter, or if
-        the coordinator has never successfully read the slow tier yet (no baseline to
-        diff against - refuse rather than write blind).
+        ``force`` is not True. Raises KeyError if ``key`` is not a known parameter.
 
-        On a real (non-dry-run) write, requests a coordinator refresh afterwards so every
-        entity picks up the new value on the next update, and always fires a
-        ``seplos_hv_write`` event with the outcome, and always logs the frame hex at INFO.
+        **Baseline freshness.** ``self.data.params[key]`` can be up to ``slow_interval``
+        (default 3600 s) stale - long enough for the vendor tool or another client to have
+        changed the value in between. So this always tries a FRESH single-group read
+        (``client.read_param``, through the normal request()/lock path - never re-polling
+        all ``len(PARAM_CMDS)`` groups) before validating, and uses that fresh block - not
+        the cached one - for the 20% step guard, for ``apply_param_change``, and for the
+        ``old_value`` reported in the event/result.
+
+        - **dry_run=True**: a fresh read is still attempted (it is a read, always allowed).
+          If it fails, falls back to the cached ``self.data.params[key]`` if one exists
+          (``result.baseline`` is set to ``"cached"`` in that case, ``"fresh"``
+          otherwise) - a dry run should still report *something* useful when the device is
+          briefly unreachable. Raises KeyError if there is no cached block either (nothing
+          to validate against at all).
+        - **dry_run=False**: a failed fresh read ABORTS the write outright (the original
+          SeplosConnectionError/SeplosTimeout propagates) - a real write never falls back
+          to a baseline it cannot confirm is current.
+
+        On success, the freshly-read (or, for dry runs, freshly re-read) block always
+        replaces ``self.data.params[key]``. After a REAL write, the read-back block from
+        ``client.write_params`` (not a full re-poll) is merged into ``self.data.params``
+        and pushed to entities via ``async_set_updated_data`` - deliberately not a full
+        ``async_request_refresh()``, which would re-read all 20 parameter groups for a
+        change to just one. Always fires a ``seplos_hv_write`` event with the outcome and
+        always logs the frame hex at INFO.
         """
         read_cmd = next((cmd for cmd, (k, _unit) in PARAM_CMDS.items() if k == key), None)
         if read_cmd is None:
@@ -265,11 +285,26 @@ class SeplosHvCoordinator(DataUpdateCoordinator[SeplosHvData]):
             raise ValueError(f"field must be one of {sorted(_FIELD_ALIASES)}, got {field!r}")
         internal_field = _FIELD_ALIASES[field]
 
-        if self.data is None or key not in self.data.params:
-            raise KeyError(
-                f"no baseline reading for {key!r} yet (slow tier never read) - refusing to write"
+        baseline_source = "fresh"
+        try:
+            block = await self.client.read_param(read_cmd)
+        except (SeplosConnectionError, SeplosTimeout):
+            if not dry_run:
+                raise  # real write: never fall back to a baseline that might be stale
+            cached = self.data.params.get(key) if self.data is not None else None
+            if cached is None:
+                raise KeyError(
+                    f"fresh read for {key!r} failed and no cached baseline exists either"
+                ) from None
+            _LOGGER.warning(
+                "seplos_hv write %s: fresh baseline read failed, dry-run falling back "
+                "to the cached (possibly stale) value", key,
             )
-        block = self.data.params[key]
+            block, baseline_source = cached, "cached"
+        else:
+            if self.data is not None:
+                self.data.params[key] = block
+
         if not 0 <= level_index < len(block.levels):
             raise ValueError(
                 f"level_index {level_index} out of range for {len(block.levels)}-level block"
@@ -283,10 +318,12 @@ class SeplosHvCoordinator(DataUpdateCoordinator[SeplosHvData]):
         new_block = apply_param_change(block, level_index, internal_field, value)
 
         result = await self.client.write_params(read_cmd, new_block, dry_run=dry_run)
+        result.baseline = baseline_source
 
         _LOGGER.info(
-            "seplos_hv write %s L%d %s: %s -> %s (dry_run=%s) frame=%s",
-            key, level_index + 1, field, old_value, value, dry_run, result.frame_hex,
+            "seplos_hv write %s L%d %s: %s -> %s (dry_run=%s, baseline=%s) frame=%s",
+            key, level_index + 1, field, old_value, value, dry_run, baseline_source,
+            result.frame_hex,
         )
 
         if not dry_run:
@@ -296,8 +333,9 @@ class SeplosHvCoordinator(DataUpdateCoordinator[SeplosHvData]):
                     "(intended %s, read back %r)",
                     key, level_index + 1, field, value, result.readback,
                 )
-            self._last_slow = None  # force a fresh slow-tier read on the next refresh
-            await self.async_request_refresh()
+            if self.data is not None and result.readback is not None:
+                self.data.params[key] = result.readback
+                self.async_set_updated_data(self.data)
 
         self.hass.bus.async_fire(
             EVENT_WRITE,
@@ -310,6 +348,7 @@ class SeplosHvCoordinator(DataUpdateCoordinator[SeplosHvData]):
                 "dry_run": dry_run,
                 "verified": result.verified,
                 "frame_hex": result.frame_hex,
+                "baseline": baseline_source,
             },
         )
         return result
