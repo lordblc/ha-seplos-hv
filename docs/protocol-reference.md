@@ -287,13 +287,87 @@ in the frame, so two concurrent readers will interleave replies and corrupt each
 * Headroom against the configured limits — distance from cell spread to the 400 mV L1 alarm,
   from min temperature to the 0 °C charge inhibit. Turns a static limit table into live warnings.
 
-> **Keep the integration read-only.** Nothing here establishes a verified write path, and the
-> parameter space controls protection limits on a live battery. An integration that can only
-> read cannot misconfigure the pack — a property worth keeping deliberately.
+> **Read-only remains the default.** Writes (below) are opt-in, off unless the
+> ``enable_writes`` option is turned on, and default to a dry run even then.
 
 ---
 
-## 7. Connecting the Solis inverter
+## 7. Writes (v0.4, UNVERIFIED envelope)
+
+Added in v0.4.0, gated behind the `enable_writes` option (default off). This section is the
+full evidence trail — read it before enabling writes on a live pack. Source: static IL
+disassembly of the vendor tool's `LargeEnergyStorage_BCU_HSU.dll` (CAN transport, not
+RS485) plus analogy to this project's own RS485 read protocol. No device was contacted while
+producing this section or the write code itself.
+
+### Command id rule
+
+The vendor tool's Set/Get button pairs, for four unrelated command families, CONFIRM
+`write_cmd = read_cmd - 1` over CAN (current-sensor and charge/discharge calibration, and the
+bulk "restore defaults" command). Applied **by analogy, not direct observation**, to the
+`0x02xx` protection table: `write_cmd = read_cmd - 1`, e.g. read `0x0209`
+(charge_over_current) → write `0x0208`. The vendor tool build examined has no Set button at
+all for this table, so this rule has never actually been exercised for `0x02xx`.
+
+### Payload shape
+
+Same shapes as the read side (§4), because the write path is built as `encode_params()`, the
+exact inverse of `decode_params()`: 24 bytes / three levels for most parameters, 16 bytes /
+two levels for the current pair (`0x0209`/`0x020B`), 4 bytes / a bare trip+recover pair (no
+delays) for `heating_start_stop` (`0x0239`). Scaling mirrors the read side: `mV` and `%` and
+`ohm/V` raw, `A` as signed 16-bit two's complement, `C` as `celsius * 10 + 2730` (see §4's
+temperature note — this is also the evidence that fixed the read-side offset from 2731).
+
+**No unlock/enter-setting-mode frame, and no explicit commit/save-to-flash frame.** The
+vendor tool's write buttons send exactly one frame (or one multi-frame stream for the bulk
+default-restore command, unrelated to this table) and nothing else.
+
+### Frame envelope
+
+`9A 01 21 <write_cmd u16 BE> 00 <len u16 BE> payload CRC16 BE 9D` — the same envelope
+`build_request()` uses for reads, with the write command id and a non-empty payload.
+**This exact byte layout, for a write, has never been observed on the wire.** The CAN
+capture that confirmed the command-id rule and the payload shape carries no separate CMD
+field (CAN has none), so whether the RS-485 payload matches byte-for-byte cannot be confirmed
+by that evidence alone; it is the most direct extrapolation available, not a certainty.
+
+### Ack shape — unresolved
+
+**Completely unknown.** The vendor tool's ack handling is generic CAN driver plumbing (a
+send-result code), not a decoded 9A/9D reply. `client.write_params()` therefore accepts
+*either* the write command or the read command as a valid ack cmd, logs the raw reply
+payload at INFO, and never raises on an unexpected reply shape — the read-back immediately
+afterwards is the only trustworthy signal.
+
+### Blacklist
+
+Never built by this codebase, from anywhere: `0x0109`/`0x010B` (current-sensor calibration),
+`0x0111`/`0x0113` (charge/discharge current calibration), `0x1000`/`0x1001` (bulk
+restore-defaults and its read-back companion). None of these have a known payload shape in
+this project, and the bulk-restore command is far more dangerous than a single threshold.
+Every even `0x02xx` id not reachable via `WRITE_CMDS` (i.e. not `read_cmd - 1` for a
+`PARAM_CMDS` key) is likewise never built — `build_write_request()` is the only function
+that can produce a non-zero-payload frame, and it refuses everything outside that set.
+
+### Verification procedure, in order
+
+1. **Dry run** (`dry_run: true`, the service default) — inspect the returned `frame_hex`.
+   Confirm the write command id (`read_cmd - 1`), the length byte, and the payload layout by
+   hand against §4/this section before doing anything else.
+2. **Compare against a vendor-tool frame log**, if one becomes available for this parameter
+   family specifically (the CAN capture used here does not cover `0x02xx` at all) — the
+   single most valuable thing that could actually confirm this envelope.
+3. **One real write, on one non-critical parameter**, on a pack that is otherwise idle -
+   ideally a delay field or a mid-range threshold with headroom on both sides, never a
+   trip value close to the pack's current operating point.
+4. **Read back immediately** (this integration does this automatically and reports
+   `verified` in the write result) and compare against the intended value.
+5. Only after (3)-(4) succeed once, cautiously, consider a parameter that actually needs
+   changing. Treat every write as unverified until independently confirmed.
+
+---
+
+## 8. Connecting the Solis inverter
 
 **Use Pylon HV.** Both ends name it identically, so there is no ambiguity about which profile
 talks to which, and it is by far the most widely deployed combination.
