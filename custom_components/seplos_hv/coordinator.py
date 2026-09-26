@@ -11,9 +11,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .client import SeplosConnectionError, SeplosHvClient, SeplosTimeout
+from .client import SeplosConnectionError, SeplosHvClient, SeplosTimeout, WriteResult
 from .const import (
     CONF_BAUDRATE,
+    CONF_ENABLE_WRITES,
     CONF_FAST_INTERVAL,
     CONF_HOST,
     CONF_MEDIUM_INTERVAL,
@@ -22,15 +23,35 @@ from .const import (
     CONF_SLOW_INTERVAL,
     CONF_TRANSPORT,
     DEFAULT_BAUDRATE,
+    DEFAULT_ENABLE_WRITES,
     DEFAULT_FAST_INTERVAL,
     DEFAULT_MEDIUM_INTERVAL,
     DEFAULT_PORT,
     DEFAULT_SLOW_INTERVAL,
     DOMAIN,
+    EVENT_WRITE,
     REQUEST_TIMEOUT,
     TRANSPORT_SERIAL,
 )
-from .protocol import ModuleCells, PackSummary, ParamBlock, Status, Temperatures
+from .protocol import (
+    PARAM_CMDS,
+    ModuleCells,
+    PackSummary,
+    ParamBlock,
+    Status,
+    Temperatures,
+    apply_param_change,
+)
+from .writes import check_step_guard, check_value_range
+
+# Map the service/number "field" spelling (no _s suffix) to the ParamLevel/
+# apply_param_change spelling used throughout protocol.py.
+_FIELD_ALIASES: dict[str, str] = {
+    "trip": "trip",
+    "recover": "recover",
+    "trip_delay": "trip_delay_s",
+    "recover_delay": "recover_delay_s",
+}
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -207,3 +228,88 @@ class SeplosHvCoordinator(DataUpdateCoordinator[SeplosHvData]):
             last_medium_update=self._last_medium,
             last_slow_update=self._last_slow,
         )
+
+    @property
+    def writes_enabled(self) -> bool:
+        """Whether the enable_writes option is on for this config entry."""
+        return self.config_entry.options.get(CONF_ENABLE_WRITES, DEFAULT_ENABLE_WRITES)
+
+    async def async_write_param(
+        self,
+        key: str,
+        level_index: int,
+        field: str,
+        value: float,
+        *,
+        dry_run: bool,
+        force: bool = False,
+    ) -> WriteResult:
+        """Validate and write one trip/recover/delay field of one parameter block.
+
+        ``key`` is a PARAM_CMDS value name (e.g. "charge_over_current"); ``field`` is one
+        of "trip", "recover", "trip_delay", "recover_delay" (no "_s" suffix - that is an
+        internal protocol.py/ParamLevel spelling). Raises ParamValidationError if the
+        value is out of range, or is a >20% single step on a trip/recover threshold and
+        ``force`` is not True. Raises KeyError if ``key`` is not a known parameter, or if
+        the coordinator has never successfully read the slow tier yet (no baseline to
+        diff against - refuse rather than write blind).
+
+        On a real (non-dry-run) write, requests a coordinator refresh afterwards so every
+        entity picks up the new value on the next update, and always fires a
+        ``seplos_hv_write`` event with the outcome, and always logs the frame hex at INFO.
+        """
+        read_cmd = next((cmd for cmd, (k, _unit) in PARAM_CMDS.items() if k == key), None)
+        if read_cmd is None:
+            raise KeyError(f"{key!r} is not a known protection parameter")
+        if field not in _FIELD_ALIASES:
+            raise ValueError(f"field must be one of {sorted(_FIELD_ALIASES)}, got {field!r}")
+        internal_field = _FIELD_ALIASES[field]
+
+        if self.data is None or key not in self.data.params:
+            raise KeyError(
+                f"no baseline reading for {key!r} yet (slow tier never read) - refusing to write"
+            )
+        block = self.data.params[key]
+        if not 0 <= level_index < len(block.levels):
+            raise ValueError(
+                f"level_index {level_index} out of range for {len(block.levels)}-level block"
+            )
+        old_level = block.levels[level_index]
+        old_value = getattr(old_level, internal_field)
+
+        check_value_range(block.unit, internal_field, value)
+        check_step_guard(internal_field, old_value, value, force=force)
+
+        new_block = apply_param_change(block, level_index, internal_field, value)
+
+        result = await self.client.write_params(read_cmd, new_block, dry_run=dry_run)
+
+        _LOGGER.info(
+            "seplos_hv write %s L%d %s: %s -> %s (dry_run=%s) frame=%s",
+            key, level_index + 1, field, old_value, value, dry_run, result.frame_hex,
+        )
+
+        if not dry_run:
+            if not result.verified:
+                _LOGGER.warning(
+                    "seplos_hv write %s L%d %s not verified by read-back "
+                    "(intended %s, read back %r)",
+                    key, level_index + 1, field, value, result.readback,
+                )
+            self._last_slow = None  # force a fresh slow-tier read on the next refresh
+            await self.async_request_refresh()
+
+        self.hass.bus.async_fire(
+            EVENT_WRITE,
+            {
+                "key": key,
+                "level": level_index + 1,
+                "field": field,
+                "old_value": old_value,
+                "new_value": value,
+                "dry_run": dry_run,
+                "verified": result.verified,
+                "frame_hex": result.frame_hex,
+            },
+        )
+        return result

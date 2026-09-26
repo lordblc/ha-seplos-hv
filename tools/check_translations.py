@@ -29,12 +29,18 @@ COMPONENT = ROOT / "custom_components" / "seplos_hv"
 PLATFORM_FILES = {
     "sensor": COMPONENT / "sensor.py",
     "binary_sensor": COMPONENT / "binary_sensor.py",
+    "number": COMPONENT / "number.py",
 }
 
 # Keys built at runtime from an f-string, which the regex below cannot see.
 # (file, dynamic expression) -> concrete keys it actually produces.
 DYNAMIC_KEYS: dict[str, list[str]] = {
     "sensor": ["param_trip", "param_recover"],  # sensor.py: f"param_{kind}", kind in ("trip", "recover")
+    "number": [
+        # number.py: f"param_{kind}_set" and f"param_{kind}_delay_set", kind in ("trip", "recover")
+        "param_trip_set", "param_recover_set",
+        "param_trip_delay_set", "param_recover_delay_set",
+    ],
 }
 
 TRANSLATION_KEY_RE = re.compile(r"""translation_key\s*=\s*["']([A-Za-z0-9_]+)["']""")

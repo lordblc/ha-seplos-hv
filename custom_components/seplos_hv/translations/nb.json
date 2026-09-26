@@ -51,13 +51,15 @@
           "fast_interval": "Raskt pollingintervall (sekunder)",
           "medium_interval": "Middels pollingintervall (sekunder)",
           "slow_interval": "Sakte pollingintervall (sekunder)",
-          "enable_cell_sensors": "Aktiver individuelle cellespenningssensorer"
+          "enable_cell_sensors": "Aktiver individuelle cellespenningssensorer",
+          "enable_writes": "Aktiver skriving av parametere (avansert, uverifisert)"
         },
         "data_description": {
           "fast_interval": "Hvor ofte pakkesammendrag og status leses (standard 15 s).",
           "medium_interval": "Hvor ofte cellespenninger og temperaturer leses (standard 60 s).",
           "slow_interval": "Hvor ofte vernparametere leses (standard 3600 s).",
-          "enable_cell_sensors": "Oppretter én sensor per celle (opptil 128). De finnes uansett, men er deaktivert som standard når denne er av."
+          "enable_cell_sensors": "Oppretter én sensor per celle (opptil 128). De finnes uansett, men er deaktivert som standard når denne er av.",
+          "enable_writes": "Lager tall-entiteter og aktiverer write_param-tjenesten for beskyttelsesparametrene. Skriverammen er UVERIFISERT for denne maskinvarefamilien - test alltid med dry_run først. La denne stå av med mindre du forstår risikoen for en batteripakke i drift."
         }
       }
     }
@@ -303,6 +305,52 @@
       },
       "charging": {
         "name": "Lader"
+      }
+    },
+    "number": {
+      "param_trip_set": {
+        "name": "{param} L{level} utløser (sett)"
+      },
+      "param_recover_set": {
+        "name": "{param} L{level} gjenopprettelse (sett)"
+      },
+      "param_trip_delay_set": {
+        "name": "{param} L{level} utløserforsinkelse (sett)"
+      },
+      "param_recover_delay_set": {
+        "name": "{param} L{level} gjenopprettelsesforsinkelse (sett)"
+      }
+    }
+  },
+  "services": {
+    "write_param": {
+      "name": "Skriv beskyttelsesparameter",
+      "description": "Skriv én utløser-/gjenopprettelsesverdi eller forsinkelse for en beskyttelsesparameter til BCU-en. Standard er en dry run som bare rapporterer rammen som ville blitt sendt. Skriverammen er UVERIFISERT - se gjennom hex-rammen før du sender den for ekte.",
+      "fields": {
+        "param": {
+          "name": "Parameter",
+          "description": "Hvilken beskyttelsesparameter-blokk som skal skrives til."
+        },
+        "level": {
+          "name": "Nivå",
+          "description": "Beskyttelsesnivå, 1-3 (1 for heating_start_stop)."
+        },
+        "field": {
+          "name": "Felt",
+          "description": "Hvilken verdi innenfor det nivået som skal endres."
+        },
+        "value": {
+          "name": "Verdi",
+          "description": "Den nye verdien, i parameterens egen enhet (mV, A, °C, %, Ω/V, eller sekunder for en forsinkelse)."
+        },
+        "dry_run": {
+          "name": "Dry run",
+          "description": "Når på (standard), bygger og returnerer rammen uten å sende den."
+        },
+        "force": {
+          "name": "Tving",
+          "description": "Overstyr 20 %-grensen for enkeltsteg på utløser-/gjenopprettelsesendringer. Fortsatt underlagt den absolutte områdekontrollen."
+        }
       }
     }
   }

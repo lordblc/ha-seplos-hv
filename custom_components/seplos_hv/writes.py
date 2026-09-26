@@ -11,7 +11,7 @@ from __future__ import annotations
 
 # Absolute-value ranges per parameter unit. Delay fields (trip_delay_s/recover_delay_s)
 # are range-checked separately, below, regardless of the parameter's own unit.
-_UNIT_RANGES: dict[str, tuple[float, float]] = {
+UNIT_RANGES: dict[str, tuple[float, float]] = {
     "mV": (2000, 4000),
     "V": (0, 4000),  # no V-unit parameter exists today; kept for completeness
     "A": (0, 300),  # checked against abs(value) - current parameters can be negative
@@ -20,7 +20,7 @@ _UNIT_RANGES: dict[str, tuple[float, float]] = {
     "ohm/V": (0, float("inf")),
 }
 
-_DELAY_RANGE_S = (0, 600)
+DELAY_RANGE_S = (0, 600)
 
 # Fields with no delay semantics at all - the 20% step guard only ever applies to these.
 _STEP_GUARDED_FIELDS = ("trip", "recover")
@@ -39,14 +39,14 @@ def check_value_range(unit: str, field: str, value: float) -> None:
     applied (the caller/coordinator already restricts which params exist at all).
     """
     if field in ("trip_delay_s", "recover_delay_s"):
-        lo, hi = _DELAY_RANGE_S
+        lo, hi = DELAY_RANGE_S
         if not lo <= value <= hi:
             raise ParamValidationError(
                 f"delay {value}s is outside the allowed range {lo}-{hi}s"
             )
         return
 
-    bounds = _UNIT_RANGES.get(unit)
+    bounds = UNIT_RANGES.get(unit)
     if bounds is None:
         return
     lo, hi = bounds
