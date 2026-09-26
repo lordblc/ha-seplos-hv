@@ -158,7 +158,8 @@ repeat module_count times:
   u16  extra × extra_count
 ```
 
-Temperatures are tenths of a kelvin: `°C = (raw − 2731) / 10`. A module with a failed
+Temperatures are tenths of a kelvin: `°C = (raw − 2730) / 10` (corrected from `2731` in v0.4.0 —
+see §7 below). A module with a failed
 thermistor loom reports `sensor_count = 0` rather than null values — a clean signal to surface
 as an integration diagnostic.
 
@@ -206,6 +207,11 @@ correct direction for each parameter's polarity.
 ## 5. Live protection configuration
 
 Read from the unit. This is the baseline to diff against after any change.
+
+> Note (v0.4.0): the temperature figures in this table were computed with the old,
+> slightly-wrong `2731` offset (see §4) and read 0.1 °C low. They are left as originally
+> recorded rather than silently re-derived; re-read the live parameters if an exact figure
+> matters.
 
 | CMD | Parameter | L1 | L2 | L3 | Unit |
 |---|---|---|---|---|---|

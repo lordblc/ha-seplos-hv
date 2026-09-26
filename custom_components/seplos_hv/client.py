@@ -4,15 +4,19 @@ Pure standard-library asyncio, plus an optional, lazily-imported serial
 backend. TCP mode must keep working even when ``serial_asyncio_fast`` is not
 installed, so that import only happens inside the serial connect branch.
 
-Read-only by construction: the only frames ever written to the wire come from
-``protocol.build_request()``, which itself refuses any command outside
-``protocol.ALLOWED_CMDS``.
+Read-only frames come exclusively from ``protocol.build_request()``, which itself
+refuses any command outside ``protocol.ALLOWED_CMDS``. Since v0.4.0, ``write_params()``
+below can also send a write frame - but ONLY a frame built by
+``protocol.build_write_request()``, which refuses anything blacklisted or not a known
+parameter write. Nothing else in this module builds an outgoing frame of any kind.
 """
 
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
+from dataclasses import dataclass
 
 try:
     from .protocol import (
@@ -25,6 +29,7 @@ try:
         CMD_SUMMARY,
         CMD_TEMPS,
         PARAM_CMDS,
+        WRITE_CMDS,
         Frame,
         FrameParser,
         ModuleCells,
@@ -33,12 +38,16 @@ try:
         Status,
         Temperatures,
         build_request,
+        build_write_request,
         decode_cells,
         decode_params,
         decode_status,
         decode_string,
         decode_summary,
         decode_temps,
+        encode_params,
+        format_frame_hex,
+        param_blocks_close,
     )
 except ImportError:  # pragma: no cover - fallback for standalone (non-package) import
     from protocol import (  # type: ignore[no-redef]
@@ -51,6 +60,7 @@ except ImportError:  # pragma: no cover - fallback for standalone (non-package) 
         CMD_SUMMARY,
         CMD_TEMPS,
         PARAM_CMDS,
+        WRITE_CMDS,
         Frame,
         FrameParser,
         ModuleCells,
@@ -59,13 +69,19 @@ except ImportError:  # pragma: no cover - fallback for standalone (non-package) 
         Status,
         Temperatures,
         build_request,
+        build_write_request,
         decode_cells,
         decode_params,
         decode_status,
         decode_string,
         decode_summary,
         decode_temps,
+        encode_params,
+        format_frame_hex,
+        param_blocks_close,
     )
+
+_LOGGER = logging.getLogger(__name__)
 
 # Minimum gap enforced between two requests on the shared half-duplex bus.
 MIN_REQUEST_GAP_S = 0.030
@@ -84,6 +100,25 @@ class SeplosConnectionError(SeplosError):
 
 class SeplosTimeout(SeplosError):
     """Raised when a request receives no matching reply within the timeout."""
+
+
+@dataclass
+class WriteResult:
+    """Outcome of one write_params() call.
+
+    ``frame_hex`` is always populated, dry-run or not, so a caller (the write_param
+    service, in particular) can inspect exactly what would be/was sent. ``reply`` is the
+    raw ack Frame from the BCU - its payload shape is UNVERIFIED, so it is never decoded
+    or validated, only logged and returned for inspection. ``readback``/``verified`` come
+    from a fresh read of the same parameter group performed immediately after a real
+    (non-dry-run) write.
+    """
+
+    frame_hex: str
+    sent: bool
+    reply: Frame | None
+    readback: ParamBlock | None
+    verified: bool
 
 
 class SeplosHvClient:
@@ -170,12 +205,19 @@ class SeplosHvClient:
         if gap < MIN_REQUEST_GAP_S:
             await asyncio.sleep(MIN_REQUEST_GAP_S - gap)
 
-    async def _send_and_wait(self, cmd: int) -> Frame:
+    async def _send_frame_and_wait(self, frame_bytes: bytes, match_cmds: frozenset[int],
+                                    *, label: str) -> Frame:
+        """Write ``frame_bytes`` and wait for a reply whose cmd is in ``match_cmds``.
+
+        Shared by the read path (``_send_and_wait``, ``match_cmds`` = {cmd}) and the write
+        path (``write_params``, ``match_cmds`` = {write_cmd, read_cmd} - the ack shape is
+        unverified, so either the write cmd echoed back or the read cmd is accepted).
+        ``label`` is only used in the timeout message.
+        """
         assert self._reader is not None and self._writer is not None
         await self._drain_stale()
         await self._throttle()
 
-        frame_bytes = build_request(cmd)
         try:
             self._writer.write(frame_bytes)
             await self._writer.drain()
@@ -188,20 +230,25 @@ class SeplosHvClient:
         while True:
             remaining = deadline - loop.time()
             if remaining <= 0:
-                raise SeplosTimeout(f"no reply to cmd 0x{cmd:04X} within {self._timeout}s")
+                raise SeplosTimeout(f"no reply to {label} within {self._timeout}s")
             try:
                 chunk = await asyncio.wait_for(self._reader.read(_READ_CHUNK), timeout=remaining)
             except asyncio.TimeoutError:
-                raise SeplosTimeout(f"no reply to cmd 0x{cmd:04X} within {self._timeout}s") from None
+                raise SeplosTimeout(f"no reply to {label} within {self._timeout}s") from None
             except (OSError, ConnectionError) as exc:
                 raise SeplosConnectionError(f"read failed: {exc}") from exc
             if not chunk:
                 raise SeplosConnectionError("connection closed by peer")
             for parsed in self._parser.feed(chunk):
-                if parsed.cmd == cmd:
+                if parsed.cmd in match_cmds:
                     return parsed
                 # a frame for a different cmd should not happen under the lock;
                 # ignore it and keep waiting for the one we asked for.
+
+    async def _send_and_wait(self, cmd: int) -> Frame:
+        return await self._send_frame_and_wait(
+            build_request(cmd), frozenset({cmd}), label=f"cmd 0x{cmd:04X}"
+        )
 
     async def request(self, cmd: int) -> Frame:
         """Send ``cmd`` and return the matching reply Frame.
@@ -251,3 +298,71 @@ class SeplosHvClient:
             frame = await self.request(cmd)
             result[key] = decode_params(cmd, frame.payload)
         return result
+
+    async def write_params(
+        self, read_cmd: int, block: ParamBlock, *, dry_run: bool = True
+    ) -> WriteResult:
+        """Write a full parameter block, then read it back to verify.
+
+        ``read_cmd`` is the READ command for the parameter group (e.g. 0x0209 for
+        charge_over_current) - the same id ``PARAM_CMDS``/``read_params()`` use. The
+        actual write command is looked up via ``protocol.WRITE_CMDS``.
+
+        With ``dry_run=True`` (the default): builds the frame and returns it in
+        ``WriteResult.frame_hex`` WITHOUT touching the wire at all - ``sent`` is False,
+        ``reply``/``readback`` are None, ``verified`` is False. Nothing is written,
+        connected, or locked.
+
+        With ``dry_run=False``: under the client's lock, sends the write frame, waits for
+        a reply matching either the write cmd or the read cmd (the ack shape is
+        UNVERIFIED - this never raises on an unexpected reply payload, it is only logged
+        at INFO and returned via ``WriteResult.reply``), then immediately re-reads
+        ``read_cmd`` and compares the freshly decoded block against ``block`` with
+        ``protocol.param_blocks_close`` to set ``verified``.
+
+        The only frame this method ever writes to the wire is the one
+        ``protocol.build_write_request()`` returns - never a bare ``payload``.
+        """
+        write_cmd = WRITE_CMDS[read_cmd]  # KeyError -> not a known parameter cmd; let it raise
+        payload = encode_params(block)
+        frame_bytes = build_write_request(read_cmd, payload)
+        frame_hex = format_frame_hex(frame_bytes)
+
+        if dry_run:
+            return WriteResult(frame_hex=frame_hex, sent=False, reply=None, readback=None,
+                                verified=False)
+
+        async with self._lock:
+            if self._writer is None:
+                await self.connect()
+
+            async def _do_write() -> Frame:
+                return await self._send_frame_and_wait(
+                    frame_bytes, frozenset({write_cmd, read_cmd}),
+                    label=f"write cmd 0x{write_cmd:04X}",
+                )
+
+            try:
+                reply = await _do_write()
+            except SeplosConnectionError:
+                await self.close()
+                await self.connect()
+                reply = await _do_write()
+
+            _LOGGER.info(
+                "write cmd 0x%04X sent: %s ; reply cmd 0x%04X payload: %s",
+                write_cmd, frame_hex, reply.cmd, format_frame_hex(reply.payload),
+            )
+
+            readback_frame = await self._send_and_wait(read_cmd)
+            readback = decode_params(read_cmd, readback_frame.payload)
+            verified = param_blocks_close(readback, block)
+            if not verified:
+                _LOGGER.warning(
+                    "write cmd 0x%04X: read-back does not match intended value "
+                    "(intended=%r, read back=%r)",
+                    write_cmd, block, readback,
+                )
+
+        return WriteResult(frame_hex=frame_hex, sent=True, reply=reply, readback=readback,
+                            verified=verified)

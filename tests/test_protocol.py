@@ -125,7 +125,8 @@ class TestDecodeSummary(unittest.TestCase):
         self.assertEqual(self.summary.cell_min_label, "BMU1 C19")
 
     def test_max_temp(self):
-        self.assertAlmostEqual(self.summary.max_temp_c, 19.8)
+        # 19.9, not 19.8: kelvin10_to_c's offset was corrected 2731 -> 2730 in v0.4.0.
+        self.assertAlmostEqual(self.summary.max_temp_c, 19.9)
 
     def test_cell_spread_and_as_dict(self):
         self.assertEqual(self.summary.cell_spread_mv,
@@ -243,8 +244,15 @@ class TestLabelsAndKelvin(unittest.TestCase):
         self.assertEqual(proto.temp_label(64), "BMU2 T1")
 
     def test_kelvin10_to_c(self):
-        self.assertAlmostEqual(proto.kelvin10_to_c(2731), 0.0)
-        self.assertAlmostEqual(proto.kelvin10_to_c(2929), 19.8)
+        # Offset corrected 2731 -> 2730 in v0.4.0 (matches the vendor tool's
+        # own write-side encoder; see kelvin10_to_c's docstring).
+        self.assertAlmostEqual(proto.kelvin10_to_c(2730), 0.0)
+        self.assertAlmostEqual(proto.kelvin10_to_c(2928), 19.8)
+
+    def test_c_to_kelvin10_round_trips(self):
+        self.assertEqual(proto.c_to_kelvin10(0.0), 2730)
+        self.assertEqual(proto.c_to_kelvin10(19.8), 2928)
+        self.assertEqual(proto.c_to_kelvin10(proto.kelvin10_to_c(2929)), 2929)
 
 
 class TestFrameParser(unittest.TestCase):

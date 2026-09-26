@@ -19,6 +19,7 @@ command in :data:`ALLOWED_CMDS`. It has no notion of a "write" frame at all.
 
 from __future__ import annotations
 
+import math
 import struct
 from dataclasses import dataclass, field
 
@@ -67,6 +68,176 @@ ALLOWED_CMDS: frozenset[int] = frozenset(
      CMD_SUMMARY, CMD_STATUS, CMD_CELLS, CMD_TEMPS}
     | set(PARAM_CMDS.keys())
 )
+
+# ---------------------------------------------------------------- writes (v0.4, UNVERIFIED)
+#
+# Everything below builds a WRITE frame. See docs/protocol-reference.md, "Writes (v0.4,
+# UNVERIFIED envelope)", and the scratchpad's bcu_write_protocol_findings.md for the full
+# evidence trail. In short:
+#
+#  - The write command id for a given PARAM_CMDS read id is CONFIRMED, over CAN, for four
+#    unrelated command pairs, to be READ_CMD - 1. Applied by analogy (never directly
+#    observed) to the 0x02xx protection table: e.g. read 0x0209 -> write 0x0208.
+#  - The RS-485 envelope for a write frame, and the shape of the BCU's ack, are UNVERIFIED.
+#    This module only ever builds the frame; sending it live is a client.py/coordinator.py
+#    decision, gated by the enable_writes option and defaulting to dry_run=True everywhere.
+#  - Blacklisted: known write-class commands with no evidence about their payload shape, or
+#    that are far more dangerous than a single protection threshold (a bulk "restore all
+#    factory defaults" command). Never build a frame for these, from anywhere in this file.
+
+# Vendor-tool Set-button commands, CONFIRMED over CAN, that this integration will never
+# implement: current-sensor calibration (0x0109/0x010B), charge/discharge current
+# calibration (0x0111/0x0113), and the bulk "write all default parameters" stream (0x1000,
+# whose read-back companion 0x1001 is blacklisted alongside it purely for symmetry - 0x1001
+# is not itself a write, but there is no legitimate reason for this module to ever build a
+# frame for the bulk-defaults family at all).
+BLACKLISTED_CMDS: frozenset[int] = frozenset(
+    {0x0109, 0x010B, 0x0111, 0x0113, 0x1000, 0x1001}
+)
+
+# read_cmd -> write_cmd, one entry per protection-parameter block. INFERRED (not directly
+# observed for this 0x02xx family - see module docstring above): write_id = read_id - 1.
+WRITE_CMDS: dict[int, int] = {read_cmd: read_cmd - 1 for read_cmd in PARAM_CMDS}
+
+# The complete whitelist of write command ids this library will ever transmit.
+# build_write_request() raises ValueError for anything outside this set, and separately
+# refuses anything in BLACKLISTED_CMDS even though the two sets never overlap today.
+ALLOWED_WRITE_CMDS: frozenset[int] = frozenset(WRITE_CMDS.values())
+
+# Expected payload length, in bytes, for a parameter write - mirrors decode_params()'s
+# documented exceptions (16 bytes / two levels for the over-current pair, 4 bytes / a bare
+# trip+recover pair with no delays for the heating start/stop command; 24 bytes / three
+# levels for every other parameter).
+_NONSTANDARD_WRITE_PAYLOAD_LEN: dict[int, int] = {0x0209: 16, 0x020B: 16, 0x0239: 4}
+
+
+def _expected_param_payload_len(read_cmd: int) -> int:
+    return _NONSTANDARD_WRITE_PAYLOAD_LEN.get(read_cmd, 24)
+
+
+def format_frame_hex(frame: bytes) -> str:
+    """Space-separated upper-case hex, for logs and dry-run output, e.g. '9A 01 21 ...'."""
+    return " ".join(f"{b:02X}" for b in frame)
+
+
+def _convert_param_value_to_raw(value: float, unit: str) -> int:
+    """Inverse of _convert_param_value: a physical value back to its raw u16."""
+    if unit == "C":
+        raw = c_to_kelvin10(value)
+    elif unit == "A":
+        signed = round(value)
+        raw = signed & 0xFFFF
+    else:
+        raw = round(value)
+    if not 0 <= raw <= 0xFFFF:
+        raise ValueError(f"encoded value 0x{raw:X} for unit {unit!r} does not fit in a u16")
+    return raw
+
+
+def encode_params(block: ParamBlock) -> bytes:
+    """Encode a ParamBlock back to the raw payload bytes decode_params() would read.
+
+    Exact inverse of decode_params(): same 24/16/4-byte shapes, same per-unit scaling
+    applied in reverse. ``block.key == "heating_start_stop"`` is the one structural
+    exception (bare trip/recover pair, no delay fields, 4 bytes total) - decode_params()
+    infers that shape from a short payload; here it is keyed off ``block.key`` since encode
+    has no payload length to infer it from.
+    """
+    out = bytearray()
+    if block.key == "heating_start_stop":
+        if len(block.levels) != 1:
+            raise ValueError("heating_start_stop must have exactly one level to encode")
+        level = block.levels[0]
+        out += _convert_param_value_to_raw(level.trip, block.unit).to_bytes(2, "big")
+        out += _convert_param_value_to_raw(level.recover, block.unit).to_bytes(2, "big")
+        return bytes(out)
+    for level in block.levels:
+        out += _convert_param_value_to_raw(level.trip, block.unit).to_bytes(2, "big")
+        out += round(level.trip_delay_s * 10).to_bytes(2, "big")
+        out += _convert_param_value_to_raw(level.recover, block.unit).to_bytes(2, "big")
+        out += round(level.recover_delay_s * 10).to_bytes(2, "big")
+    return bytes(out)
+
+
+def build_write_request(read_cmd: int, payload: bytes) -> bytes:
+    """Build a write frame for the parameter block read by ``read_cmd``.
+
+    ``read_cmd`` is the READ command (e.g. 0x0209 for charge_over_current); the actual
+    write command transmitted is ``WRITE_CMDS[read_cmd]`` (e.g. 0x0208). Frame shape
+    mirrors build_request(): ``9A 01 21 <write_cmd u16 BE> 00 <len u16 BE> payload
+    CRC16 BE 9D``. Raises ValueError if ``read_cmd`` has no known write command, if the
+    computed write command is blacklisted or outside ALLOWED_WRITE_CMDS, or if
+    ``payload`` is not the exact expected length for that parameter's group.
+
+    This is the ONLY function in this module that can produce a frame with a non-zero
+    payload; nothing else in protocol.py builds an outgoing write frame.
+    """
+    if read_cmd not in WRITE_CMDS:
+        raise ValueError(f"cmd 0x{read_cmd:04X} is not a known parameter read command")
+    write_cmd = WRITE_CMDS[read_cmd]
+    if write_cmd in BLACKLISTED_CMDS or write_cmd not in ALLOWED_WRITE_CMDS:
+        raise ValueError(f"write cmd 0x{write_cmd:04X} is blacklisted or not allowed")
+    expected_len = _expected_param_payload_len(read_cmd)
+    if len(payload) != expected_len:
+        raise ValueError(
+            f"payload for write cmd 0x{write_cmd:04X} must be {expected_len} bytes, "
+            f"got {len(payload)}"
+        )
+    header = (
+        bytes([SOF, HOST_ADDR, BCU_ADDR])
+        + write_cmd.to_bytes(2, "big")
+        + b"\x00"
+        + len(payload).to_bytes(2, "big")
+    )
+    frame = header + payload
+    frame += crc16(frame).to_bytes(2, "big") + bytes([EOF])
+    return frame
+
+
+def apply_param_change(
+    block: ParamBlock, level_index: int, field: str, value: float
+) -> ParamBlock:
+    """Return a copy of ``block`` with one (level, field) changed to ``value``.
+
+    ``field`` must be one of "trip", "recover", "trip_delay_s", "recover_delay_s".
+    ``heating_start_stop`` only has trip/recover (no delay fields to change) - matching
+    its bare-pair wire shape.
+    """
+    valid_fields = {"trip", "recover", "trip_delay_s", "recover_delay_s"}
+    if field not in valid_fields:
+        raise ValueError(f"field must be one of {sorted(valid_fields)}, got {field!r}")
+    if block.key == "heating_start_stop" and field not in ("trip", "recover"):
+        raise ValueError("heating_start_stop has no delay fields to change")
+    if not 0 <= level_index < len(block.levels):
+        raise ValueError(
+            f"level_index {level_index} out of range for {len(block.levels)}-level block"
+        )
+    new_levels = list(block.levels)
+    old = new_levels[level_index]
+    new_levels[level_index] = ParamLevel(
+        trip=value if field == "trip" else old.trip,
+        trip_delay_s=value if field == "trip_delay_s" else old.trip_delay_s,
+        recover=value if field == "recover" else old.recover,
+        recover_delay_s=value if field == "recover_delay_s" else old.recover_delay_s,
+    )
+    return ParamBlock(key=block.key, unit=block.unit, levels=new_levels)
+
+
+def param_blocks_close(a: ParamBlock, b: ParamBlock) -> bool:
+    """True if two ParamBlocks describe the same values (float-tolerant comparison).
+
+    Used to compute write verification: comparing dataclasses with ``==`` is exact-float,
+    which is fragile after an encode/decode round trip through delay scaling (``* 0.1``).
+    """
+    if a.key != b.key or a.unit != b.unit or len(a.levels) != len(b.levels):
+        return False
+    return all(
+        math.isclose(la.trip, lb.trip, abs_tol=1e-6)
+        and math.isclose(la.trip_delay_s, lb.trip_delay_s, abs_tol=1e-6)
+        and math.isclose(la.recover, lb.recover, abs_tol=1e-6)
+        and math.isclose(la.recover_delay_s, lb.recover_delay_s, abs_tol=1e-6)
+        for la, lb in zip(a.levels, b.levels)
+    )
 
 
 def crc16(data: bytes) -> int:
@@ -230,8 +401,20 @@ def temp_label(index: int) -> str:
 
 
 def kelvin10_to_c(raw: int) -> float:
-    """Convert tenths-of-a-kelvin (as used throughout this protocol) to Celsius."""
-    return (raw - 2731) / 10
+    """Convert tenths-of-a-kelvin (as used throughout this protocol) to Celsius.
+
+    Offset is 2730, not 2731. The read-side decoder used 2731 through v0.3.x;
+    corrected in v0.4.0 against the vendor tool's own write-side encoder
+    (``raw = celsius * 10 + 2730``, confirmed by IL disassembly - see
+    bcu_write_protocol_findings.md) and against a live cross-check: the user
+    set 2.0 C in the vendor tool and HA displayed 1.9 C with the old offset.
+    """
+    return (raw - 2730) / 10
+
+
+def c_to_kelvin10(celsius: float) -> int:
+    """Inverse of kelvin10_to_c: Celsius to a tenths-of-a-kelvin u16 raw value."""
+    return round(celsius * 10) + 2730
 
 
 @dataclass
