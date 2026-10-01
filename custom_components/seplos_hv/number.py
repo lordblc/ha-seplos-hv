@@ -53,7 +53,8 @@ class SeplosHvParamNumber(SeplosHvEntity, NumberEntity):
     """
 
     _attr_entity_category = EntityCategory.CONFIG
-    _attr_entity_registry_enabled_default = False
+    # Numbers only exist when enable_writes is on; the user chose that, so show them.
+    _attr_entity_registry_enabled_default = True
     _attr_mode = NumberMode.BOX
 
     def __init__(
@@ -111,7 +112,8 @@ class SeplosHvParamDelayNumber(SeplosHvEntity, NumberEntity):
     """
 
     _attr_entity_category = EntityCategory.CONFIG
-    _attr_entity_registry_enabled_default = False
+    # Numbers only exist when enable_writes is on; the user chose that, so show them.
+    _attr_entity_registry_enabled_default = True
     _attr_mode = NumberMode.BOX
     _attr_native_unit_of_measurement = "s"
     _attr_native_min_value = DELAY_RANGE_S[0]

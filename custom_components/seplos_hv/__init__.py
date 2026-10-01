@@ -33,6 +33,8 @@ from .writes import ParamValidationError
 
 # unique_id of a per-cell voltage sensor: "<serial>_m<module>_c<cell>"
 _CELL_UNIQUE_ID_RE = re.compile(r"_m\d+_c\d+$")
+# unique_id of a protection-threshold number entity: "<serial>_<param>_l<n>_<field>_set"
+_NUMBER_UNIQUE_ID_RE = re.compile(r"_l[123]_(trip|recover|trip_delay|recover_delay)_set$")
 
 _WRITE_PARAM_SCHEMA = vol.Schema(
     {
@@ -48,20 +50,24 @@ _WRITE_PARAM_SCHEMA = vol.Schema(
 
 @callback
 def _async_apply_cell_sensor_option(hass: HomeAssistant, entry: SeplosHvConfigEntry) -> None:
-    """Honour ``enable_cell_sensors`` for cell entities that already exist.
+    """Honour ``enable_cell_sensors`` / ``enable_writes`` for entities that already exist.
 
     ``entity_registry_enabled_default`` only applies when an entity is first
     registered. If the option is on, clear the integration-set disabled flag on
     any per-cell sensor so it is added enabled on this setup. Entities the user
     disabled themselves are left alone.
     """
-    if not entry.options.get(CONF_ENABLE_CELL_SENSORS, DEFAULT_ENABLE_CELL_SENSORS):
+    want_cells = entry.options.get(CONF_ENABLE_CELL_SENSORS, DEFAULT_ENABLE_CELL_SENSORS)
+    want_numbers = entry.options.get(CONF_ENABLE_WRITES, DEFAULT_ENABLE_WRITES)
+    if not (want_cells or want_numbers):
         return
     registry = er.async_get(hass)
     for reg_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
-        if (
-            reg_entry.disabled_by is RegistryEntryDisabler.INTEGRATION
-            and _CELL_UNIQUE_ID_RE.search(reg_entry.unique_id or "")
+        if reg_entry.disabled_by is not RegistryEntryDisabler.INTEGRATION:
+            continue
+        uid = reg_entry.unique_id or ""
+        if (want_cells and _CELL_UNIQUE_ID_RE.search(uid)) or (
+            want_numbers and reg_entry.domain == "number" and _NUMBER_UNIQUE_ID_RE.search(uid)
         ):
             registry.async_update_entity(reg_entry.entity_id, disabled_by=None)
 
