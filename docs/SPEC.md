@@ -83,7 +83,7 @@ def decode_temps(payload) -> Temperatures
 def decode_params(cmd:int, payload) -> ParamBlock         # converts units: C from 0.1K, A signed, delays ×0.1 s
 def cell_label(index:int) -> str   # "BMU1 C21" : module = index//32+1, cell = index%32+1
 def temp_label(index:int) -> str   # "BMU4 T12" : module = index//64+1, sensor = index%64+1
-def kelvin10_to_c(raw:int) -> float  # (raw-2731)/10
+def kelvin10_to_c(raw:int) -> float  # (raw-2730)/10 (corrected from 2731 in v0.4.0)
 ```
 
 PackSummary offsets (u16/u32 BE unless noted): 0 v_pack 0.1V; 2 v_collect 0.1V; 4 v_load 0.1V;

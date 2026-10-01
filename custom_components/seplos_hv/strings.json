@@ -51,13 +51,15 @@
           "fast_interval": "Fast poll interval (seconds)",
           "medium_interval": "Medium poll interval (seconds)",
           "slow_interval": "Slow poll interval (seconds)",
-          "enable_cell_sensors": "Enable individual cell voltage sensors"
+          "enable_cell_sensors": "Enable individual cell voltage sensors",
+          "enable_writes": "Enable parameter writes (advanced)"
         },
         "data_description": {
           "fast_interval": "How often to read the pack summary and status (default 15 s).",
           "medium_interval": "How often to read cell voltages and temperatures (default 60 s).",
           "slow_interval": "How often to read the protection parameters (default 3600 s).",
-          "enable_cell_sensors": "Creates one sensor per cell (up to 128). They exist either way but stay disabled by default when this is off."
+          "enable_cell_sensors": "Creates one sensor per cell (up to 128). They exist either way but stay disabled by default when this is off.",
+          "enable_writes": "Creates number entities and enables the write_param service for the protection-parameter table. The write frame format was verified against a vendor-tool capture (2026-10-01); still test with dry_run first. Leave this off unless you understand the risk to a live battery pack."
         }
       }
     }
@@ -303,6 +305,52 @@
       },
       "charging": {
         "name": "Charging"
+      }
+    },
+    "number": {
+      "param_trip_set": {
+        "name": "{param} L{level} trip (set)"
+      },
+      "param_recover_set": {
+        "name": "{param} L{level} recover (set)"
+      },
+      "param_trip_delay_set": {
+        "name": "{param} L{level} trip delay (set)"
+      },
+      "param_recover_delay_set": {
+        "name": "{param} L{level} recover delay (set)"
+      }
+    }
+  },
+  "services": {
+    "write_param": {
+      "name": "Write protection parameter",
+      "description": "Write one trip/recover threshold or delay of a protection parameter to the BCU. Defaults to a dry run that only reports the frame that would be sent. The write frame format is verified against a vendor-tool capture; review the frame hex before sending for real.",
+      "fields": {
+        "param": {
+          "name": "Parameter",
+          "description": "Which protection-parameter block to write to."
+        },
+        "level": {
+          "name": "Level",
+          "description": "Protection level, 1-3 (1 for heating_start_stop)."
+        },
+        "field": {
+          "name": "Field",
+          "description": "Which value within that level to change."
+        },
+        "value": {
+          "name": "Value",
+          "description": "The new value, in the parameter's own unit (mV, A, °C, %, Ω/V, or seconds for a delay)."
+        },
+        "dry_run": {
+          "name": "Dry run",
+          "description": "When on (default), builds and returns the frame without sending it."
+        },
+        "force": {
+          "name": "Force",
+          "description": "Bypass the 20% single-step guard on trip/recover changes. Still subject to the absolute range check."
+        }
       }
     }
   }

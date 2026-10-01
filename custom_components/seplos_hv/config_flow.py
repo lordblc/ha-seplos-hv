@@ -24,6 +24,7 @@ from .client import SeplosConnectionError, SeplosHvClient, SeplosTimeout
 from .const import (
     CONF_BAUDRATE,
     CONF_ENABLE_CELL_SENSORS,
+    CONF_ENABLE_WRITES,
     CONF_FAST_INTERVAL,
     CONF_HOST,
     CONF_MEDIUM_INTERVAL,
@@ -33,6 +34,7 @@ from .const import (
     CONF_TRANSPORT,
     DEFAULT_BAUDRATE,
     DEFAULT_ENABLE_CELL_SENSORS,
+    DEFAULT_ENABLE_WRITES,
     DEFAULT_FAST_INTERVAL,
     DEFAULT_MEDIUM_INTERVAL,
     DEFAULT_PORT,
@@ -222,6 +224,10 @@ class SeplosHvOptionsFlow(OptionsFlow):
                     default=options.get(
                         CONF_ENABLE_CELL_SENSORS, DEFAULT_ENABLE_CELL_SENSORS
                     ),
+                ): bool,
+                vol.Required(
+                    CONF_ENABLE_WRITES,
+                    default=options.get(CONF_ENABLE_WRITES, DEFAULT_ENABLE_WRITES),
                 ): bool,
             }
         )

@@ -11,14 +11,20 @@ Home Assistant integration for a **Seplos HV Master Control Box (BCU-1002C)**, p
 its proprietary RS485-1 protocol. It exposes pack, module, cell, temperature and protection-
 parameter data as sensors — nothing is written back to the BMS.
 
-## Read-only guarantee
+## Read-only by default; writes are opt-in
 
-This integration **never writes to the BCU**. It only ever sends the small, fixed set of
-read-only query commands documented in `docs/SPEC.md` (identity, pack summary, status, cell
-voltages, temperatures, and protection-parameter reads), each with a zero-length request
-payload. There are no switches, numbers, buttons or services — nothing in this integration
-can change a setting or a relay state on your battery. All charge/discharge control stays
-with the BCU itself.
+Out of the box this integration only reads: identity, pack summary, status, cell voltages,
+temperatures, and protection-parameter reads, each with a zero-length request payload. There
+are no switches, numbers or services unless you turn them on.
+
+Since v0.4.0, an **"Enable parameter writes"** option (off by default, in the integration's
+options) gates a guarded write path for the protection-parameter table (trip/recover
+thresholds and their delays): a `seplos_hv.write_param` service and, per parameter, disabled-
+by-default number entities. **The write frame envelope has never been observed on the wire —
+see `docs/protocol-reference.md`, "Writes (v0.4, envelope verified 2026-10-01)", before using it.**
+Every write defaults to `dry_run: true` (report the frame, send nothing), range-checks the
+value, and blocks any single trip/recover step larger than 20% unless you pass `force: true`.
+Leave the option off if you have no reason to change a protection limit remotely.
 
 ## Transports
 

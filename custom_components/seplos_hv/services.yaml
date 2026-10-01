@@ -1,0 +1,62 @@
+write_param:
+  fields:
+    param:
+      required: true
+      selector:
+        select:
+          options:
+            - cell_over_voltage
+            - cell_under_voltage
+            - charge_over_current
+            - discharge_over_current
+            - charge_high_temperature
+            - discharge_high_temperature
+            - charge_low_temperature
+            - discharge_low_temperature
+            - ambient_high_temperature
+            - ambient_low_temperature
+            - soc_high
+            - soc_low
+            - insulation_positive
+            - insulation_negative
+            - cell_delta_charge
+            - cell_delta_discharge
+            - temperature_delta_charge
+            - temperature_delta_discharge
+            - heating_start_stop
+            - relay_high_temperature
+    level:
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 3
+          step: 1
+          mode: box
+    field:
+      required: true
+      selector:
+        select:
+          options:
+            - trip
+            - recover
+            - trip_delay
+            - recover_delay
+    value:
+      required: true
+      selector:
+        number:
+          min: -1000000
+          max: 1000000
+          step: 0.1
+          mode: box
+    dry_run:
+      required: false
+      default: true
+      selector:
+        boolean:
+    force:
+      required: false
+      default: false
+      selector:
+        boolean:
