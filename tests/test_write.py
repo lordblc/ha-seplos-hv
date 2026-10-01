@@ -417,3 +417,24 @@ class TestWriteParamsRealWrite(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestCapturedVendorWrite(unittest.TestCase):
+    """The vendor tool's own RS485 write, captured 2026-10-01 (cell over-voltage block)."""
+
+    CAPTURED_REQUEST = bytes.fromhex(
+        "9A0121020000001 80DB6001E0D7000140DDE00140D8E00140E10001E0D34001E9AD49D".replace(" ", "")
+    )
+    CAPTURED_ACK = bytes.fromhex("9A2101020000000 00B809D".replace(" ", ""))
+
+    def test_builder_reproduces_captured_frame(self):
+        block = proto.decode_params(0x0201, self.CAPTURED_REQUEST[8:8 + 24])
+        self.assertEqual([lvl.trip for lvl in block.levels], [3510.0, 3550.0, 3600.0])
+        self.assertEqual(proto.build_write_request(0x0201, proto.encode_params(block)),
+                         self.CAPTURED_REQUEST)
+
+    def test_ack_shape(self):
+        ack = proto.parse_frame(self.CAPTURED_ACK)
+        self.assertEqual(ack.cmd, 0x0200)
+        self.assertEqual((ack.src, ack.dst), (proto.BCU_ADDR, proto.HOST_ADDR))
+        self.assertEqual(ack.payload, b"")

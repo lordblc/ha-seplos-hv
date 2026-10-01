@@ -108,8 +108,9 @@ class WriteResult:
 
     ``frame_hex`` is always populated, dry-run or not, so a caller (the write_param
     service, in particular) can inspect exactly what would be/was sent. ``reply`` is the
-    raw ack Frame from the BCU - its payload shape is UNVERIFIED, so it is never decoded
-    or validated, only logged and returned for inspection. ``readback``/``verified`` come
+    raw ack Frame from the BCU. The ack shape was VERIFIED on 2026-10-01 from a vendor-tool
+    capture: the BCU echoes the write command id with an EMPTY payload. ``ack_ok`` is True
+    when the reply has exactly that shape. ``readback``/``verified`` come
     from a fresh read of the same parameter group performed immediately after a real
     (non-dry-run) write. ``baseline`` is set by the caller (SeplosHvCoordinator.
     async_write_param), not by write_params() itself, to "fresh" or "cached" depending on
@@ -123,6 +124,7 @@ class WriteResult:
     reply: Frame | None
     readback: ParamBlock | None
     verified: bool
+    ack_ok: bool = False
     baseline: str = "fresh"
 
 
@@ -215,8 +217,8 @@ class SeplosHvClient:
         """Write ``frame_bytes`` and wait for a reply whose cmd is in ``match_cmds``.
 
         Shared by the read path (``_send_and_wait``, ``match_cmds`` = {cmd}) and the write
-        path (``write_params``, ``match_cmds`` = {write_cmd, read_cmd} - the ack shape is
-        unverified, so either the write cmd echoed back or the read cmd is accepted).
+        path (``write_params``, ``match_cmds`` = {write_cmd, read_cmd}; the verified ack is
+        the write cmd echoed with an empty payload, the read cmd is tolerated as a fallback).
         ``label`` is only used in the timeout message.
         """
         assert self._reader is not None and self._writer is not None
@@ -328,9 +330,10 @@ class SeplosHvClient:
         connected, or locked.
 
         With ``dry_run=False``: under the client's lock, sends the write frame, waits for
-        a reply matching either the write cmd or the read cmd (the ack shape is
-        UNVERIFIED - this never raises on an unexpected reply payload, it is only logged
-        at INFO and returned via ``WriteResult.reply``), then immediately re-reads
+        a reply matching either the write cmd or the read cmd. The verified ack (vendor
+        capture 2026-10-01, cmd 0x0200) is the write cmd echoed with an EMPTY payload;
+        ``WriteResult.ack_ok`` reports whether that exact shape came back. Anything else
+        is logged at WARNING but does not raise. The method then immediately re-reads
         ``read_cmd`` and compares the freshly decoded block against ``block`` with
         ``protocol.param_blocks_close`` to set ``verified``.
 
@@ -363,10 +366,15 @@ class SeplosHvClient:
                 await self.connect()
                 reply = await _do_write()
 
-            _LOGGER.info(
-                "write cmd 0x%04X sent: %s ; reply cmd 0x%04X payload: %s",
-                write_cmd, frame_hex, reply.cmd, format_frame_hex(reply.payload),
-            )
+            ack_ok = reply.cmd == write_cmd and len(reply.payload) == 0
+            if ack_ok:
+                _LOGGER.info("write cmd 0x%04X sent: %s ; BCU acknowledged (empty echo)",
+                             write_cmd, frame_hex)
+            else:
+                _LOGGER.warning(
+                    "write cmd 0x%04X sent: %s ; unexpected reply cmd 0x%04X payload: %s",
+                    write_cmd, frame_hex, reply.cmd, format_frame_hex(reply.payload),
+                )
 
             readback_frame = await self._send_and_wait(read_cmd)
             readback = decode_params(read_cmd, readback_frame.payload)
@@ -379,4 +387,4 @@ class SeplosHvClient:
                 )
 
         return WriteResult(frame_hex=frame_hex, sent=True, reply=reply, readback=readback,
-                            verified=verified)
+                            verified=verified, ack_ok=ack_ok)

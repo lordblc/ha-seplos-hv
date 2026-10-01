@@ -301,7 +301,15 @@ in the frame, so two concurrent readers will interleave replies and corrupt each
 
 ---
 
-## 7. Writes (v0.4, UNVERIFIED envelope)
+## 7. Writes (v0.4, envelope verified 2026-10-01)
+
+**Verification (2026-10-01).** A vendor-tool frame log captured the tool saving the cell
+over-voltage block over RS485: request `9A 01 21 02 00 00 00 18 <24-byte block> 9A D4 9D`,
+reply `9A 21 01 02 00 00 00 00 0B 80 9D`. `build_write_request(0x0201, encode_params(block))`
+reproduces the request byte for byte, and the ack is the write id echoed with an empty payload.
+The `write_cmd = read_cmd - 1` rule, the block payload shape and the absence of any unlock or
+commit frame are therefore confirmed for the `0x02xx` table on RS485, not just inferred. The
+remainder of this section is the original evidence trail.
 
 Added in v0.4.0, gated behind the `enable_writes` option (default off). This section is the
 full evidence trail — read it before enabling writes on a live pack. Source: static IL
@@ -372,7 +380,7 @@ that can produce a non-zero-payload frame, and it refuses everything outside tha
 4. **Read back immediately** (this integration does this automatically and reports
    `verified` in the write result) and compare against the intended value.
 5. Only after (3)-(4) succeed once, cautiously, consider a parameter that actually needs
-   changing. Treat every write as unverified until independently confirmed.
+   changing. The envelope is verified for 0x0200; other blocks share the layout but have not each been exercised.
 
 ### Baseline freshness
 

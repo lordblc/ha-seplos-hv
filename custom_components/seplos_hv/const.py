@@ -23,7 +23,7 @@ CONF_FAST_INTERVAL: Final = "fast_interval"
 CONF_MEDIUM_INTERVAL: Final = "medium_interval"
 CONF_SLOW_INTERVAL: Final = "slow_interval"
 CONF_ENABLE_CELL_SENSORS: Final = "enable_cell_sensors"
-# Guarded parameter-write support (v0.4.0). Off by default: with this off, no number
+# Guarded parameter-write support (v0.4.1). Off by default: with this off, no number
 # entities are created and the seplos_hv.write_param service refuses every call.
 CONF_ENABLE_WRITES: Final = "enable_writes"
 
@@ -48,10 +48,10 @@ MAX_SLOW_INTERVAL: Final = 86400
 # interval's lower bound (5 s) already gives plenty of margin over this.
 REQUEST_TIMEOUT: Final = 1.5
 
-# Guarded parameter-write support (v0.4.0).
+# Guarded parameter-write support (v0.4.1).
 SERVICE_WRITE_PARAM: Final = "write_param"
 EVENT_WRITE: Final = "seplos_hv_write"
 STEP_GUARD_FRACTION: Final = 0.20
 
 # Integration version (keep in sync with manifest.json).
-VERSION: Final = "0.4.0"
+VERSION: Final = "0.4.1"

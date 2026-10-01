@@ -69,7 +69,7 @@ ALLOWED_CMDS: frozenset[int] = frozenset(
     | set(PARAM_CMDS.keys())
 )
 
-# ---------------------------------------------------------------- writes (v0.4, UNVERIFIED)
+# ---------------------------------------------------------------- writes (v0.4; envelope VERIFIED 2026-10-01)
 #
 # Everything below builds a WRITE frame. See docs/protocol-reference.md, "Writes (v0.4,
 # UNVERIFIED envelope)", and the scratchpad's bcu_write_protocol_findings.md for the full
@@ -78,7 +78,9 @@ ALLOWED_CMDS: frozenset[int] = frozenset(
 #  - The write command id for a given PARAM_CMDS read id is CONFIRMED, over CAN, for four
 #    unrelated command pairs, to be READ_CMD - 1. Applied by analogy (never directly
 #    observed) to the 0x02xx protection table: e.g. read 0x0209 -> write 0x0208.
-#  - The RS-485 envelope for a write frame, and the shape of the BCU's ack, are UNVERIFIED.
+#  - RS-485 write envelope and ack VERIFIED 2026-10-01: a vendor-tool capture of a cell-OV write
+#    (0x0200, 24-byte block) is reproduced byte-for-byte by build_write_request(); the BCU acks
+#    with the write cmd echoed and an empty payload (tests/test_write.py::TestCapturedVendorWrite).
 #    This module only ever builds the frame; sending it live is a client.py/coordinator.py
 #    decision, gated by the enable_writes option and defaulting to dry_run=True everywhere.
 #  - Blacklisted: known write-class commands with no evidence about their payload shape, or

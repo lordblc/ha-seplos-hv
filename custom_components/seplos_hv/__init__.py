@@ -154,6 +154,7 @@ def _async_register_write_param_service(hass: HomeAssistant) -> None:
             "frame_hex": result.frame_hex,
             "sent": result.sent,
             "verified": result.verified,
+                "ack_ok": result.ack_ok,
             "baseline": result.baseline,
             "reply_cmd": f"0x{result.reply.cmd:04X}" if result.reply is not None else None,
             "reply_payload_hex": (

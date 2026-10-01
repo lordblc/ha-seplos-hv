@@ -52,14 +52,14 @@
           "medium_interval": "Middels pollingintervall (sekunder)",
           "slow_interval": "Sakte pollingintervall (sekunder)",
           "enable_cell_sensors": "Aktiver individuelle cellespenningssensorer",
-          "enable_writes": "Aktiver skriving av parametere (avansert, uverifisert)"
+          "enable_writes": "Aktiver skriving av parametere"
         },
         "data_description": {
           "fast_interval": "Hvor ofte pakkesammendrag og status leses (standard 15 s).",
           "medium_interval": "Hvor ofte cellespenninger og temperaturer leses (standard 60 s).",
           "slow_interval": "Hvor ofte vernparametere leses (standard 3600 s).",
           "enable_cell_sensors": "Oppretter én sensor per celle (opptil 128). De finnes uansett, men er deaktivert som standard når denne er av.",
-          "enable_writes": "Lager tall-entiteter og aktiverer write_param-tjenesten for beskyttelsesparametrene. Skriverammen er UVERIFISERT for denne maskinvarefamilien - test alltid med dry_run først. La denne stå av med mindre du forstår risikoen for en batteripakke i drift."
+          "enable_writes": "Lager tall-entiteter og aktiverer write_param-tjenesten for beskyttelsesparametrene. Skriverammen er verifisert mot en opptaksfil fra leverandørverktøyet (2026-10-01), men test alltid med dry_run først. La dette stå av med mindre du forstår risikoen for et batteri i drift."
         }
       }
     }
@@ -325,7 +325,7 @@
   "services": {
     "write_param": {
       "name": "Skriv beskyttelsesparameter",
-      "description": "Skriv én utløser-/gjenopprettelsesverdi eller forsinkelse for en beskyttelsesparameter til BCU-en. Standard er en dry run som bare rapporterer rammen som ville blitt sendt. Skriverammen er UVERIFISERT - se gjennom hex-rammen før du sender den for ekte.",
+      "description": "Skriv én utløser-/gjenopprettelsesverdi eller forsinkelse for en beskyttelsesparameter til BCU-en. Standard er en dry run som bare rapporterer rammen som ville blitt sendt. Skriverammen er verifisert mot leverandørverktøyet – gå gjennom ramme-hexen før du sender på ordentlig.",
       "fields": {
         "param": {
           "name": "Parameter",

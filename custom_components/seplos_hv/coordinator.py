@@ -347,6 +347,7 @@ class SeplosHvCoordinator(DataUpdateCoordinator[SeplosHvData]):
                 "new_value": value,
                 "dry_run": dry_run,
                 "verified": result.verified,
+                "ack_ok": result.ack_ok,
                 "frame_hex": result.frame_hex,
                 "baseline": baseline_source,
             },
