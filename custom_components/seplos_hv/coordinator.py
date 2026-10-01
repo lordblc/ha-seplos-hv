@@ -312,7 +312,7 @@ class SeplosHvCoordinator(DataUpdateCoordinator[SeplosHvData]):
         old_level = block.levels[level_index]
         old_value = getattr(old_level, internal_field)
 
-        check_value_range(block.unit, internal_field, value)
+        check_value_range(block.unit, internal_field, value, key=key)
         check_step_guard(internal_field, old_value, value, force=force)
 
         new_block = apply_param_change(block, level_index, internal_field, value)

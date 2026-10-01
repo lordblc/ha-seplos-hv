@@ -438,3 +438,25 @@ class TestCapturedVendorWrite(unittest.TestCase):
         self.assertEqual(ack.cmd, 0x0200)
         self.assertEqual((ack.src, ack.dst), (proto.BCU_ADDR, proto.HOST_ADDR))
         self.assertEqual(ack.payload, b"")
+
+
+class TestParamSpecificRanges(unittest.TestCase):
+    """Delta parameters are differences, not absolute cell voltages (bug found live 2026-10-01)."""
+
+    def test_cell_delta_uses_difference_range(self):
+        writes.check_value_range("mV", "trip", 400, key="cell_delta_discharge")  # ok
+        writes.check_value_range("mV", "recover", 250, key="cell_delta_charge")  # ok
+        with self.assertRaises(writes.ParamValidationError):
+            writes.check_value_range("mV", "trip", 3500, key="cell_delta_discharge")
+        self.assertEqual(writes.range_for("mV", "cell_delta_discharge"), (0, 1000))
+
+    def test_absolute_cell_voltage_keeps_unit_range(self):
+        self.assertEqual(writes.range_for("mV", "cell_over_voltage"), (2000, 4000))
+        with self.assertRaises(writes.ParamValidationError):
+            writes.check_value_range("mV", "trip", 400, key="cell_over_voltage")
+
+    def test_temperature_delta_and_relay(self):
+        writes.check_value_range("C", "trip", 14.9, key="temperature_delta_charge")
+        writes.check_value_range("C", "trip", 99.9, key="relay_high_temperature")
+        with self.assertRaises(writes.ParamValidationError):
+            writes.check_value_range("C", "trip", 99.9, key="charge_high_temperature")

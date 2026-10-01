@@ -24,7 +24,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .const import CONF_ENABLE_WRITES, DEFAULT_ENABLE_WRITES
 from .coordinator import SeplosHvConfigEntry, SeplosHvCoordinator
 from .entity import SeplosHvEntity
-from .writes import DELAY_RANGE_S, UNIT_RANGES
+from .writes import DELAY_RANGE_S, range_for
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ class SeplosHvParamNumber(SeplosHvEntity, NumberEntity):
         }
         self._attr_native_unit_of_measurement = unit or None
 
-        lo, hi = UNIT_RANGES.get(unit, (0, 1_000_000))
+        lo, hi = range_for(unit, param_key) or (0, 1_000_000)
         if hi == float("inf"):
             hi = 1_000_000
         if unit == "A":

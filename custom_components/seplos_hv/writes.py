@@ -22,6 +22,26 @@ UNIT_RANGES: dict[str, tuple[float, float]] = {
 
 DELAY_RANGE_S = (0, 600)
 
+# Per-parameter overrides for parameters whose unit range does not fit their meaning:
+# the delta parameters are DIFFERENCES (a cell delta of 400 mV, a temperature delta of
+# 15 C), not absolute cell voltages or temperatures, and the relay high-temperature trip
+# sits above the 90 C ceiling that is right for cells.
+PARAM_RANGES: dict[str, tuple[float, float]] = {
+    "cell_delta_charge": (0, 1000),             # mV difference between highest and lowest cell
+    "cell_delta_discharge": (0, 1000),
+    "temperature_delta_charge": (0, 60),        # C difference between sensors
+    "temperature_delta_discharge": (0, 60),
+    "relay_high_temperature": (0, 150),         # C, contactor/relay body
+}
+
+
+def range_for(unit: str, key: str | None = None) -> tuple[float, float] | None:
+    """Allowed (min, max) for a parameter: the per-parameter override if one exists, else
+    the unit's range, else None (unknown unit, no check)."""
+    if key is not None and key in PARAM_RANGES:
+        return PARAM_RANGES[key]
+    return UNIT_RANGES.get(unit)
+
 # Fields with no delay semantics at all - the 20% step guard only ever applies to these.
 _STEP_GUARDED_FIELDS = ("trip", "recover")
 
@@ -30,7 +50,7 @@ class ParamValidationError(ValueError):
     """Raised when a proposed parameter write fails a range or step-size check."""
 
 
-def check_value_range(unit: str, field: str, value: float) -> None:
+def check_value_range(unit: str, field: str, value: float, key: str | None = None) -> None:
     """Raise ParamValidationError if ``value`` is outside the safe range for ``unit``/``field``.
 
     Delay fields (trip_delay_s/recover_delay_s) are checked against 0-600 s regardless of
@@ -46,7 +66,7 @@ def check_value_range(unit: str, field: str, value: float) -> None:
             )
         return
 
-    bounds = UNIT_RANGES.get(unit)
+    bounds = range_for(unit, key)
     if bounds is None:
         return
     lo, hi = bounds
