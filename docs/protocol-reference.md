@@ -93,6 +93,15 @@ Seen once each during a tab sweep, purpose unestablished: `0x0015` `0x0017` `0x0
 `0x001F` `0x0021` `0x0023` `0x0025` `0x0027` `0x002A` `0x002B` `0x0042` `0x0043`. Also `0x0057`,
 which appeared only as an **unsolicited reply** — possibly an event push, worth watching.
 
+### Writes — observed once, never sent by this integration
+
+A vendor-tool capture from 2026-10-01 contains a parameter write: `CMD 0x0200` from host to BCU with
+a **24-byte payload in the same 12 × u16 layout as the 0x0201 read block** (cell over-voltage L1–L3
+trip / delay / recover / delay), answered by `0x0200` from the BCU with an **empty payload** (LEN 0)
+as the acknowledgement. This confirms that even ids are the write counterparts of the odd read ids
+and that the payload is the full block, not a single field. The integration's `build_request()`
+still refuses every even id; this note exists so nobody has to rediscover the format.
+
 ### Read/write convention — the safety rule
 
 Every parameter command observed doing a **read** is **odd**: `0x0201`, `0x0203` … `0x023F`.
